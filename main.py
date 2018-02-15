@@ -11,9 +11,17 @@ def print_fields(db):
     return db.header
 
 
-def get_table(db, args):
+def get_table(db, args, options):
     """Returns a table of variants based on the fields and filter options provided"""
-    pass
+    query = "SELECT {fields} FROM variants WHERE {where_filter}" \
+                .format(fields=', '.join(options.fields), 
+                                         where_filter=options.where_filters)
+    db.run(query)
+    table_lines = [str(db.header)]
+    for row in db:
+        table_lines.append(str(row))
+    return table_lines
+
 
 
 def main():
@@ -49,7 +57,9 @@ def main():
     elif arguments["mode"] == "variant":
         pass
     elif arguments["mode"] == "table":
-        pass
+        output_table = get_table(gemini_db, arguments, options)
+        with open(arguments["output"], 'w') as outputfile:
+            outputfile.write('\n'.join(output_table))
     elif arguments["mode"] == "info":
         print_comprehension = [print(field) for field in print_fields(gemini_db).split('\t')]
 
