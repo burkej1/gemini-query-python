@@ -16,7 +16,7 @@ def get_table(db, args, options):
     query = "SELECT {fields} FROM variants WHERE {where_filter}" \
                 .format(fields=', '.join(options.fields), 
                                          where_filter=options.where_filters)
-    db.run(query)
+    db.run(query, show_variant_samples=True)  # Hardcoded the boolean here, might want to change
     table_lines = [str(db.header)]
     for row in db:
         table_lines.append(str(row))
@@ -39,6 +39,8 @@ def main():
                                      "info - print the fields present in the database.")
     parser.add_argument("-i", "--input", help="Input database to query.", required=True)
     parser.add_argument("-o", "--output", help="File to write query results to.", required=True)
+    parser.add_argument("-sf", "--simple_filter", help="Preset filter options.", default=None)
+    # Below arguments aren't currently used (defaults only are used at the moment
     parser.add_argument("-f", "--fields", help="List of fields to pull.", default=options.fields)
     parser.add_argument("-w", "--where", help="List of filters in SQL WHERE structure.", 
                         default=options.where_filters)

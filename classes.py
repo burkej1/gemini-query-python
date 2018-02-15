@@ -1,3 +1,4 @@
+import re
 # Contains some useful classes
 
 class Options(object):
@@ -13,7 +14,8 @@ class Options(object):
                        "alt", 
                        "filter", 
                        "qual_depth", 
-                       "transcript", 
+                       "vep_pick",   # TEMP
+                       "transcript", # TEMP 
                        "vep_hgvsc", 
                        "vep_hgvsp", 
                        "vep_brcaex_hgvs_cdna", 
@@ -28,11 +30,15 @@ class Options(object):
 
     def update_with_arguments(self, args):
         """Updates internal values based on passed arguments"""
-        pass
+        if args["simple_filter"] is not None:
+            self.translate_update_where(args["simple_filter"])
 
-    def translate_where(self, plaintext_where):
-        """Translates plain text arguments to specific where queries"""
-        # Formatting more complex where queries here
+    def translate_update_where(self, plaintext_where):
+        """Translates plain text arguments to predefined where queries and updates the where_filter option
+        accordingly."""
+        # # # Formatting more complex where queries here
+        # # Standard filtering criteria, primary annotation blocks and variants that passed filters
+        standard = ("vep_pick = 1 AND filter = None")
 
         # # Primary transcripts passing filters and variants in requested transcripts passing filters
         # Exclude the primary annotation blocks for genes where transcripts where specified
@@ -41,15 +47,25 @@ class Options(object):
         # Include specified transcripts
         transcripts_to_include = [transcript.split(':')[1] for transcript in self.transcripts]
         transcripts_to_include = " OR ".join(["transcript = '" + transcript + "'" for transcript in transcripts_to_include])
-        standard_transcripts = "(vep_pick = 1 AND filter IS NULL AND ( {exclude} )) " \
+        standard_transcripts = "((vep_pick = 1 AND filter IS NULL AND ( {exclude} )) " \
                                "OR " \
-                               "(( {include} ) AND filter IS NULL)".format(transcriptlist=self.transcripts, 
+                               "(( {include} ) AND filter IS NULL))".format(transcriptlist=self.transcripts, 
                                                                         exclude=genes_to_exclude, 
                                                                         include=transcripts_to_include)
+        # # As above but including variants that didn't pass filters
+        standard_transcripts_nofilter = re.sub("AND filter IS NULL", "", standard_transcripts)
 
+        # # # # IDEA # # # # 
+        # Allow any of the above defined gene selections to be combined with specific threshold filters
+        # maybe take both options together separated by a comma?
+        # E.g. standard_transcripts,lof would use standard selection then filter that to include only lof
+        # variants
+        
         # Instantiating the dictionary
-        translation_dictionary = {"standard": "vep_pick = 1 AND filter = None", 
-                                  "standard_transcripts": standard_transcripts}
+        translation_dictionary = {"standard": standard, 
+                                  "standard_transcripts": standard_transcripts, 
+                                  "standard_transcripts_nofilter": standard_transcripts_nofilter}
 
-        # Translating the request
-        return translation_dictionary[plaintext_where]
+        # Translating the request and updating the where filter option
+        self.where_filters = translation_dictionary[plaintext_where]
+
