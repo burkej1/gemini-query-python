@@ -16,6 +16,8 @@ def get_table(db, args, options):
     query = "SELECT {fields} FROM variants WHERE {where_filter}" \
                 .format(fields=', '.join(options.fields), 
                                          where_filter=options.where_filters)
+    print("Generating a table from the following query:")
+    print(query)
     db.run(query, show_variant_samples=True)  # Hardcoded the boolean here, might want to change
     table_lines = [str(db.header)]
     for row in db:
@@ -26,34 +28,29 @@ def get_table(db, args, options):
 
 def main():
     """Main function which parses arguments and calls relevant functions"""
-    # Pulling various default options and setting up the options class
-    options = classes.Options()
 
     # Defining the argument parser
     parser = argparse.ArgumentParser(description="Python wrapper for interacting with GEMINI databases.")
-    parser.add_argument("mode", help="Mode to run in. " \
-                                     "sample - returns all variants in a given sample; " \
-                                     "variant - search for a given variant; " \
-                                     "table - returns a table of all variants with sample lists filtered " \
-                                     "using given criteria; " \
-                                     "info - print the fields present in the database.")
+    parser.add_argument("-M", "--mode", help="Mode to run in. " \
+                                             "sample - returns all variants in a given sample; " \
+                                             "variant - search for a given variant; " \
+                                             "table - returns a table of variants from given criteria; " \
+                                             "info - print the fields present in the database.")
     parser.add_argument("-i", "--input", help="Input database to query.", required=True)
     parser.add_argument("-o", "--output", help="File to write query results to.", required=True)
     parser.add_argument("-sf", "--simple_filter", help="Preset filter options.", default=None)
-    # Below arguments aren't currently used (defaults only are used at the moment
-    parser.add_argument("-f", "--fields", help="List of fields to pull.", default=options.fields)
-    parser.add_argument("-w", "--where", help="List of filters in SQL WHERE structure.", 
-                        default=options.where_filters)
-    # Parsing the arguments and storing as a dictionary
-    arguments = vars(parser.parse_args())
+    # Below are more manual options that will override defaults
+    parser.add_argument("-f", "--fields", help="Comma separated list of fields to pull.", default=None)
+    parser.add_argument("-w", "--where", help="Filter string in SQL WHERE structure.", default=None)
+    # Need to add a an argument for transcript lists, not sure whether to take a file or string as input #
+    arguments = vars(parser.parse_args()) # Parsing the arguments and storing as a dictionary
 
-    # Updating the program options based on the passed arguments
-    options.update_with_arguments(arguments)
+    options = classes.Options()  # Setting up the options class with a number of defaults
+    options.update_with_arguments(arguments)  # Updating the program options based on the passed arguments
 
-    # Creating the gemini database object from the input database
-    gemini_db = GeminiQuery.GeminiQuery(arguments["input"])
+    gemini_db = GeminiQuery.GeminiQuery(arguments["input"])  # Creating the gemini database object 
 
-    # Calling relevant function depending on the mode option
+    # Calling relevant function depending on the chosen mode
     if arguments["mode"] == "sample":
         pass
     elif arguments["mode"] == "variant":
