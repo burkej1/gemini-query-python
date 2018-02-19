@@ -72,14 +72,65 @@ def get_sample_variants(db, args, options):
     return table_lines
 
 
+def get_variant_information(db, args, options):
+    """Retrieves genotype and depth information for all carriers of a given variant along with the
+    original variant entry"""
+    variant = args["variant"]
+    gt_info_fields = ["gt_ref_depths", "gt_alt_depths", "gt_alt_freqs", "gt_quals"]
+    get_carriers_query = "SELECT vep_hgvsc FROM variants WHERE vep_hgvsc == '{variant}'".format(variant=variant)
+    get_carriers_query = "SELECT {fields} FROM variants WHERE vep_hgvsc == '{variant}'" \
+                             .format(fields=', '.join(options.fields), variant=variant)
+    db.run(get_carriers_query, show_variant_samples=True)
+    variant_matches = []
+    original_header = db.header
+    for row in db:
+        original_variant_info = str(row)
+        variant_matches.append(row["variant_samples"])
+
+    if len(variant_matches) > 1:
+        print("Multiple matches found, exiting.")
+        quit()
+    elif len(variant_matches) == 0:
+        print("No matches found, exiting.")
+        quit()
+
+    # Instantiating an empty dictionary to store everything
+    genotype_info_dictionary = {}
+    for field in gt_info_fields:
+        # Build a separate query for each genotype query (better return structure this way)
+        genotype_query_formatted_samples = []  # List containing field.sampleid values
+        for sample in variant_matches[0]:  # Completing the above list
+            genotype_query_formatted_samples.append('.'.join([field, sample]))
+        # Building a query from the above list
+        genotype_query = "SELECT {gtinfo} FROM variants WHERE vep_hgvsc == '{variant}'" \
+                             .format(gtinfo=', '.join(genotype_query_formatted_samples), variant=variant)
+        # Running the query against the database
+        db.run(genotype_query)
+        # Getting the sample IDs from the header
+        headerids = [headerid.lstrip(field + '.') for headerid in str(db.header).split('\t')]
+        # Creating a dictionary stored under the current GT field being queried
+        genotype_info_dictionary[field] = {}
+        for row in db:
+            for n, value in enumerate(str(row).split('\t')):
+                # Storing the sample IDs and values as key-value pairs
+                genotype_info_dictionary[field][headerids[n]] = value
+
+    # Formatting the genotype information table
+    header = ["Sample"]
+    header.extend(gt_info_fields)
+    gt_table_lines = ["Variant Entry:", original_header, original_variant_info, "", 
+                      "Carrier Information:", '\t'.join(header)]
+    for sample in variant_matches[0]:
+        workingline = [sample]
+        for field in gt_info_fields:
+            workingline.append(genotype_info_dictionary[field][sample])
+        gt_table_lines.append('\t'.join(workingline))
+    return gt_table_lines
+
+
+
 def main():
     """Main function which parses arguments and calls relevant functions"""
-    # parser.add_argument("-M", "--mode", help="Mode to run in. " \
-    #                                          "sample - returns all variants in a given sample; " \
-    #                                          "variant - search for a given variant; " \
-    #                                          "table - returns a table of variants from given criteria; " \
-    #                                          "info - print the fields present in the database.")
-
     # Defining the argument parser
     # Top level parser
     parser = argparse.ArgumentParser(prog="gemini_wrapper")
@@ -96,24 +147,28 @@ def main():
     # Setting up subparsers
     subparsers = parser.add_subparsers(title="Modes", help="Mode to run in.", dest="mode")
     # Sample parser
-    parser_sample = subparsers.add_parser("sample", help="Searches for a given sample and returns a list " \
-                                                         "of all variants present in that sample", 
+    parser_sample = subparsers.add_parser("sample", 
+                                          help="Searches for a given sample and returns a list " \
+                                               "of all variants present in that sample", 
                                           parents=[shared_arguments])
     parser_sample.add_argument("-o", "--output", help="File to write sample query table to.", required=True)
     parser_sample.add_argument("-S", "--sampleid", help="Sample ID to query", required=True)
     # Might also want to add an argument that will take a list of samples/BSIDs
     # Variant parser
-    parser_variant = subparsers.add_parser("variant", help="Searches database for given variant.", 
+    parser_variant = subparsers.add_parser("variant", 
+                                           help="Searches database for given variant.", 
                                            parents=[shared_arguments])
     parser_variant.add_argument("-o", "--output", help="File to write variant query table to.", required=True)
     parser_variant.add_argument("-v", "--variant", help="variant to query", required=True)
     # Table parser
-    parser_table = subparsers.add_parser("table", help="Returns a table containing given fields and  " \
-                                                       "filtered using given filtering options.", 
+    parser_table = subparsers.add_parser("table", 
+                                         help="Returns a table containing given fields and  " \
+                                              "filtered using given filtering options.", 
                                          parents=[shared_arguments])
     parser_table.add_argument("-o", "--output", help="File to write output table to.", required=True)
     # Info parser
-    parser_info = subparsers.add_parser("info", help="Prints the fields present in the database", 
+    parser_info = subparsers.add_parser("info", 
+                                        help="Prints the fields present in the database", 
                                         parents=[shared_arguments])
 
     arguments = vars(parser.parse_args()) # Parsing the arguments and storing as a dictionary
@@ -129,7 +184,9 @@ def main():
         with open(arguments["output"], 'w') as outputfile:
             outputfile.write('\n'.join(output_table))
     elif arguments["mode"] == "variant":
-        pass
+        output_table = get_variant_information(gemini_db, arguments, options)
+        with open(arguments["output"], 'w') as outputfile:
+            outputfile.write('\n'.join(output_table))
     elif arguments["mode"] == "table":
         output_table = get_table(gemini_db, arguments, options)
         with open(arguments["output"], 'w') as outputfile:
