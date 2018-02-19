@@ -1,6 +1,6 @@
 from __future__ import print_function
 from gemini import GeminiQuery  # Importing the gemini query class
-import argparse  # For parsing arguments
+import argparse  
 import re
 import classes
 
@@ -74,24 +74,48 @@ def get_sample_variants(db, args, options):
 
 def main():
     """Main function which parses arguments and calls relevant functions"""
+    # parser.add_argument("-M", "--mode", help="Mode to run in. " \
+    #                                          "sample - returns all variants in a given sample; " \
+    #                                          "variant - search for a given variant; " \
+    #                                          "table - returns a table of variants from given criteria; " \
+    #                                          "info - print the fields present in the database.")
 
     # Defining the argument parser
-    parser = argparse.ArgumentParser(description="Python wrapper for interacting with GEMINI databases.")
-    parser.add_argument("-M", "--mode", help="Mode to run in. " \
-                                             "sample - returns all variants in a given sample; " \
-                                             "variant - search for a given variant; " \
-                                             "table - returns a table of variants from given criteria; " \
-                                             "info - print the fields present in the database.")
-    parser.add_argument("-i", "--input", help="Input database to query.", required=True)
-    parser.add_argument("-o", "--output", help="File to write query results to.", required=True)
-    parser.add_argument("-sf", "--simple_filter", help="Preset filter options.", default=None)
-    parser.add_argument("-S", "--sampleid", help="Sample ID to use when running in sample mode. Can be " \
-                                                 "supplied as either BSID only or as a file name.", default=None)
+    # Top level parser
+    parser = argparse.ArgumentParser(prog="gemini_wrapper")
+    # Shared argument parser (inherited by subparsers)
+    shared_arguments = argparse.ArgumentParser(add_help=False)
+    shared_arguments.add_argument("-i", "--input", help="Input database to query.", required=True)
+    shared_arguments.add_argument("-sf", "--simple_filter", help="Preset filter options.", default=None)
     # Below are more manual options that will override defaults
-    parser.add_argument("-f", "--fields", help="Comma separated list of fields to pull.", default=None)
-    parser.add_argument("-w", "--where", help="Filter string in SQL WHERE structure.", default=None)
+    shared_arguments.add_argument("-f", "--fields", help="Comma separated list of fields to extract.", 
+                                  default=None)
+    shared_arguments.add_argument("-w", "--where", help="Filter string in SQL WHERE structure.", default=None)
     # Need to add a an argument for transcript lists, not sure whether to take a file or string as input #
+
+    # Setting up subparsers
+    subparsers = parser.add_subparsers(title="Modes", help="Mode to run in.", dest="mode")
+    # Sample parser
+    parser_sample = subparsers.add_parser("sample", help="Searches for a given sample and returns a list " \
+                                                         "of all variants present in that sample", 
+                                          parents=[shared_arguments])
+    parser_sample.add_argument("-o", "--output", help="File to write sample query table to.", required=True)
+    parser_sample.add_argument("-S", "--sampleid", help="Sample ID to query", required=True)
     # Might also want to add an argument that will take a list of samples/BSIDs
+    # Variant parser
+    parser_variant = subparsers.add_parser("variant", help="Searches database for given variant.", 
+                                           parents=[shared_arguments])
+    parser_variant.add_argument("-o", "--output", help="File to write variant query table to.", required=True)
+    parser_variant.add_argument("-v", "--variant", help="variant to query", required=True)
+    # Table parser
+    parser_table = subparsers.add_parser("table", help="Returns a table containing given fields and  " \
+                                                       "filtered using given filtering options.", 
+                                         parents=[shared_arguments])
+    parser_table.add_argument("-o", "--output", help="File to write output table to.", required=True)
+    # Info parser
+    parser_info = subparsers.add_parser("info", help="Prints the fields present in the database", 
+                                        parents=[shared_arguments])
+
     arguments = vars(parser.parse_args()) # Parsing the arguments and storing as a dictionary
 
     options = classes.Options()  # Setting up the options class with a number of defaults
