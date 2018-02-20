@@ -17,7 +17,7 @@ def get_table(db, args, options):
     """Returns a table of variants based on the fields and filter options provided"""
     query = "SELECT {fields} FROM variants WHERE {where_filter}" \
                 .format(fields=', '.join(options.final_fields),
-                        where_filter=options.final_filters)
+                        where_filter=options.final_filter)
     print("Generating a table from the following query:")
     print(query)
     db.run(
@@ -61,7 +61,7 @@ def get_sample_variants(db, args, options):
                            "gt_alt_freqs.{fsi}".format(fsi=fullsampleid)
     query = "SELECT {fields}, {genotypeinfo} FROM variants WHERE {where_filter}" \
                 .format(fields=', '.join(options.final_fields),
-                        where_filter=options.final_filters,
+                        where_filter=options.final_filter,
                         genotypeinfo=genotype_information)
     print("Generating a table from the following query filtered to only include " \
           "variants present in the given sample:")
@@ -172,7 +172,7 @@ def main():
         "-pF",
         "--presetfields",
         help="Can be 'base' (a set of basic fields), or 'explore' which included population " \
-             "frequencies and various effect prediction scores in addition to base the base " \
+             "frequencies and various effect prediction scores in addition to the base " \
              "fields.",
         default=None, choices=['base', 'explore'])
     shared_arguments.add_argument(  # Extra fields

@@ -28,7 +28,7 @@ class Options(object):
             "num_het",
             "num_hom_alt"
         ]
-        self.explore_fields = self.base_fields + [ 
+        self.explore_fields = [ 
             # Population frequencies
             "vep_exac_af",
             "vep_exac_af_nfe",
@@ -36,7 +36,6 @@ class Options(object):
             # Effect prediction
             "vep_cadd_phred",
             "vep_cadd_raw",
-            "vep_rvl",
             "vep_rvl_revel_score",
             "polyphen_pred",
             "polyphen_score",
@@ -52,8 +51,7 @@ class Options(object):
         self.user_fields = [  # User supplied fields
         ]
         self.where_filters = "(vep_pick = 1 AND filter IS NULL)"  # Default filter
-        self.user_filters = [  # User supplied filters
-        ]
+        self.user_filters = None  # User supplied filters
         self.transcripts = [
             "BRCA1:NM_007294.3",  # BRCA1 transcript (vep gets this one wrong).
             "BRCA2:NM_000059.3"
@@ -95,9 +93,12 @@ class Options(object):
         else:
             self.final_fields = self.user_fields
         if not self.overwrite_filters:
-            self.final_filter = "({presetf} AND {userf})".format(presetf=self.where_filters,
-                                                                 userf=self.user_filters)
-        else:
+            if args["extrafilter"] is not None:
+                self.final_filter = "({presetf} AND {userf})".format(presetf=self.where_filters,
+                                                                     userf=self.user_filters)
+            else:
+                self.final_filter = self.where_filters
+        elif self.user_filters:
             self.final_filter = self.user_filters
 
     def get_predefined_filter(self, where_argument):
@@ -110,8 +111,9 @@ class Options(object):
         genes_to_exclude = [
             transcript.split(':')[0] for transcript in self.transcripts
         ]
-        genes_to_exclude = " AND ".join(
-            ["gene != '" + gene + "'" for gene in genes_to_exclude])
+        genes_to_exclude = " AND ".join([
+            "gene != '" + gene + "'" for gene in genes_to_exclude
+        ])
         transcripts_to_include = [
             transcript.split(':')[1] for transcript in self.transcripts
         ]
@@ -120,7 +122,7 @@ class Options(object):
             for transcript in transcripts_to_include
         ])
         standard_transcripts = "((vep_pick = 1 AND filter IS NULL AND ( {exclude} )) " \
-                               "OR ( {include} ) AND filter IS NULL))" \
+                               "OR (( {include} ) AND filter IS NULL))" \
                                    .format(exclude=genes_to_exclude,
                                            include=transcripts_to_include)
 
