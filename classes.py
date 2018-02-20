@@ -1,12 +1,13 @@
-"""This primarily contains the options class with a number of useful methods"""
+"""This primarily contains the options class with some of useful methods"""
 import re
 
 
 class Options(object):
-    """A container to hold various default values and incorporate any values passed as arguments."""
+    """A container to hold various default values and incorporate any values passed
+    as arguments."""
 
     def __init__(self):
-        self.fields = [
+        self.base_fields = [  # Basic fields
             "gene",
             "impact",
             "is_lof",
@@ -16,7 +17,6 @@ class Options(object):
             "ref",
             "alt",
             "filter",
-            "qual_depth",
             "vep_pick",  # TEMP
             "transcript",  # TEMP
             "vep_hgvsc",
@@ -28,34 +28,85 @@ class Options(object):
             "num_het",
             "num_hom_alt"
         ]
-        self.where_filters = "(vep_pick = 1 AND filter IS NULL)"
+        self.explore_fields = self.base_fields + [ 
+            # Population frequencies
+            "vep_exac_af",
+            "vep_exac_af_nfe",
+            "vep_gnomad_af_nfe",
+            # Effect prediction
+            "vep_cadd_phred",
+            "vep_cadd_raw",
+            "vep_rvl",
+            "vep_rvl_revel_score",
+            "polyphen_pred",
+            "polyphen_score",
+            "sift_pred",
+            "sift_score",
+            # Splicing
+            "vep_ada_score",
+            "vep_rf_score",
+            "vep_maxentscan_alt",
+            "vep_maxentscan_diff",
+            "vep_maxentscan_ref",
+        ]
+        self.user_fields = [  # User supplied fields
+        ]
+        self.where_filters = "(vep_pick = 1 AND filter IS NULL)"  # Default filter
+        self.user_filters = [  # User supplied filters
+        ]
         self.transcripts = [
             "BRCA1:NM_007294.3",  # BRCA1 transcript (vep gets this one wrong).
             "BRCA2:NM_000059.3"
         ]
+        self.overwrite_fields = False
+        self.overwrite_filters = False
+        self.exclude_filtered = True  # Exclude filtered variants
+        # To be populated at the end of argument incorporation and subsequently
+        # used by all table-producing functions
+        self.final_filter = None
+        self.final_fields = None
 
     def update_with_arguments(self, args):
         """Updates internal values based on passed arguments"""
-        specified_filter_given = False
+        # Arguments that overwrite defaults/presets
         if args["fields"] is not None:
             # Replace default fields with user supplied fields if given
-            self.fields = args["fields"].split(',')
-        if args["where"] is not None:
-            # Replace filtering thresholds with a user supplied string, disables simple_filter
-            specified_filter_given = True
-            self.where_filters = args["where"]
-        if args["simple_filter"] is not None and not specified_filter_given:
-            # Updates filters based on simple arguments
-            self.translate_update_where(args["simple_filter"])
+            self.user_fields = args["fields"].split(',')
+            self.overwrite_fields = True
+        if args["filters"] is not None:
+            # Replace filtering thresholds with a user supplied string, disables presetfilter
+            self.overwrite_filters = True
+            self.where_filters = args["filters"]
+        # Non-overwriting arguments
+        if args["presetfilter"] is not None and not self.overwrite_filters:
+            self.where_filters = self.get_predefined_filter(args["presetfilter"])
+        if args["extrafilter"] is not None and not self.overwrite_fields:
+            self.user_filters = args["extrafilter"]
+        if args["extrafields"] is not None and not self.overwrite_fields:
+            self.user_fields = args["extrafields"].split(',')
+        # Populating final filter and field variables
+        if not self.overwrite_fields:
+            if args["presetfields"] == "base":
+                self.final_fields = self.base_fields + self.user_fields
+            elif args["presetfields"] == "explore":
+                self.final_fields = self.base_fields + self.explore_fields + self.user_fields
+            else:
+                self.final_fields = self.base_fields + self.user_fields
+        else:
+            self.final_fields = self.user_fields
+        if not self.overwrite_filters:
+            self.final_filter = "({presetf} AND {userf})".format(presetf=self.where_filters,
+                                                                 userf=self.user_filters)
+        else:
+            self.final_filter = self.user_filters
 
-    def translate_update_where(self, where_argument):
-        """Translates simple arguments to predefined where queries and updates the where_filter
-        option accordingly."""
+    def get_predefined_filter(self, where_argument):
+        """Translates simple arguments to predefined where queries."""
         # # Each query is designed as a block so each block can be combined with an AND or OR
         # Standard filtering criteria, primary annotation blocks and variants that passed filters
-        standard = ("(vep_pick = 1 AND filter = None)")
+        standard = "(vep_pick = 1 AND filter = None)"
 
-        # Primary transcripts passing filters and variants in requested transcripts passing filters
+        # Variants in primary transcript blocks and in requested transcripts
         genes_to_exclude = [
             transcript.split(':')[0] for transcript in self.transcripts
         ]
@@ -69,7 +120,9 @@ class Options(object):
             for transcript in transcripts_to_include
         ])
         standard_transcripts = "((vep_pick = 1 AND filter IS NULL AND ( {exclude} )) " \
-                               "OR ( {include} ) AND filter IS NULL))".format(transcriptlist=self.transcripts, exclude=genes_to_exclude, include=transcripts_to_include)
+                               "OR ( {include} ) AND filter IS NULL))" \
+                                   .format(exclude=genes_to_exclude,
+                                           include=transcripts_to_include)
 
         # As above but including variants that didn't pass filters
         standard_transcripts_nofilter = re.sub("AND filter IS NULL", "",
@@ -100,7 +153,7 @@ class Options(object):
             "lof_pathogenic": lof_pathogenic
         }
 
-        # Checking to see if one or two filter setting where supplied
+        # Checking to see if one or two filter settings where supplied
         if ',' in where_argument:
             split_plaintext = where_argument.split(',')
             where_filter_one = translation_dictionary[split_plaintext[0]]
@@ -111,4 +164,8 @@ class Options(object):
             where_filter = translation_dictionary[where_argument]
 
         # Translating the request and updating the where filter option
-        self.where_filters = where_filter
+        return where_filter
+
+
+
+
