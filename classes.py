@@ -126,7 +126,6 @@ class Options(object):
                                    .format(exclude=genes_to_exclude,
                                            include=transcripts_to_include)
 
-
         # As above but including variants that didn't pass filters
         standard_transcripts_nofilter = re.sub("AND filter IS NULL", "",
                                                standard_transcripts)

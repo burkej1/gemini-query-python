@@ -76,7 +76,6 @@ def get_sample_variants(db, args, options):
     return table_lines
 
 
-
 def get_variant_information(db, args, options):
     """Retrieves genotype and depth information for all carriers of a given variant along with the
     original variant entry"""
