@@ -1,8 +1,9 @@
+"""Main"""
 from __future__ import print_function
-from gemini import GeminiQuery  # Importing the gemini query class
-import argparse  
+import argparse
 import re
 import classes
+from gemini import GeminiQuery  # Importing the gemini query class
 
 
 def get_fields(db):
@@ -65,7 +66,7 @@ def get_sample_variants(db, args, options):
     print(gt_filter)
     # # Recreating the gemini database object to clear the previous query
     # db = GeminiQuery.GeminiQuery(args["input"])  
-    db.run(query, gt_filter, show_variant_samples=False)
+    db.run(query, gt_filter, show_variant_samples=True)
     table_lines = [str(db.header)]
     for row in db:
         table_lines.append(str(row))
@@ -137,7 +138,7 @@ def main():
     # Shared argument parser (inherited by subparsers)
     shared_arguments = argparse.ArgumentParser(add_help=False)
     shared_arguments.add_argument("-i", "--input", help="Input database to query.", required=True)
-    shared_arguments.add_argument("-sf", "--simple_filter", help="Preset filter options.", default=None)
+    shared_arguments.add_argument("-sf", "--simple_filter", help="Preset filter options. One of: standard (Primary annotation blocks and variants passing filters); standard_transcripts (Standard but will prioritise a given list of transcripts); standard_transcripts_nofilter (same as previous but will include variants not passing filters). Can be combined one of the following (separated by a comma): lof (frameshift, stopgain, splicing variants and variants deemed LoF by VEP); lof_pathogenic (lof and variants classified Pathogenic by ENIGMA (using data from BRCA exchange). E.g. -sf standard_transcripts,lof", default=None)
     # Below are more manual options that will override defaults
     shared_arguments.add_argument("-f", "--fields", help="Comma separated list of fields to extract.", 
                                   default=None)
@@ -159,7 +160,7 @@ def main():
                                            help="Searches database for given variant.", 
                                            parents=[shared_arguments])
     parser_variant.add_argument("-o", "--output", help="File to write variant query table to.", required=True)
-    parser_variant.add_argument("-v", "--variant", help="variant to query", required=True)
+    parser_variant.add_argument("-v", "--variant", help="Variant to query in HGVS format. E.g. NM_000059.3:c.6810_6817del", required=True)
     # Table parser
     parser_table = subparsers.add_parser("table", 
                                          help="Returns a table containing given fields and  " \
