@@ -140,102 +140,101 @@ def get_variant_information(geminidb, args, options):
 
 def parse_arguments():
     """Creates the argument parser, parses and returns arguments"""
+    # Dictionary containing helptext (to make the parser more readable)
+    helptext_dict = {
+        "presets_config": "Config file containing a number of preset values with space for " \
+                          "user-defined presets.",
+        "presetfilter"  : "Preset filter options. One of: standard (Primary annotation "     \
+                          "blocks and variants passing filters); standard_transcripts "      \
+                          "(Standard but will prioritise a given list of transcripts); Can " \
+                          "be combined one of the following (separated by a comma): lof "    \
+                          "(frameshift, stopgain, splicing variants and variants deemed "    \
+                          "LoF by VEP); lof_pathogenic (lof and variants classified "        \
+                          "Pathogenic by ENIGMA (using data from BRCA exchange). E.g. "      \
+                          "-sf standard_transcripts,lof",
+        "extrafilter"   : "Additional fields to use in addition to the presets, combined "   \
+                          "with the AND operator.",
+        "presetfields"  : "Can be 'base' (a set of basic fields), or 'explore' which "       \
+                          "included population frequencies and various effect prediction "   \
+                          "scores in addition to the base fields. Can include user-defined " \
+                          "sets of fields in the presets.config file.",
+        "extrafields"   : "A comma separated list of fields to include in addition to the "  \
+                          "chosen presets.",
+        "filter"        : "Filter string in SQL WHERE structure, overwrites presets.",
+        "fields"        : "Comma separated list of fields to extract, overwrites presets.",
+        "sample"        : "Searches for a given sample and returns a list of all variants "  \
+                          "present in that sample",
+        "output"        : "File to write sample query table to.",
+        "sampleid"      : "Sample ID to query",
+        "variant"       : "Searches database for given variant.",
+        "variantname"   : "Variant to query in HGVS format. E.g. NM_000059.3:c.6810_6817del",
+        "table"         : "Returns a table containing given fields and filtered using "      \
+                          "given filtering options.",
+        "info"          : "Prints the fields present in the database"
+    }
+
     # Defining the argument parser
     # Top level parser
     parser = argparse.ArgumentParser(prog="gemini_wrapper")
     # Shared argument parser (inherited by subparsers)
     shared_arguments = argparse.ArgumentParser(add_help=False)
-    shared_arguments.add_argument("-i", "--input", help="Input database to query.", required=True)
-    shared_arguments.add_argument(  # Presets file
-        "-c", "--presets_config",
-        help="Config file containing a number of preset values with space for user-defined " \
-             "presets.",
-        default="presets.config")
-    shared_arguments.add_argument(  # Preset filters
-        "-pf", "--presetfilter",
-        help="Preset filter options. One of: standard (Primary annotation blocks and variants " \
-        "passing filters); standard_transcripts (Standard but will prioritise a given " \
-        "list of transcripts); Can be combined one of the following " \
-        "(separated by a comma): lof (frameshift, stopgain, splicing variants and " \
-        "variants deemed LoF by VEP); lof_pathogenic (lof and variants classified " \
-        "Pathogenic by ENIGMA (using data from BRCA exchange). " \
-        "E.g. -sf standard_transcripts,lof",
-        default="standard_transcripts")
-    shared_arguments.add_argument(  # Extra filters
-        "-ef",
-        "--extrafilter",
-        help="Additional fields to use in addition to the presets, combined with the AND " \
-             "operator.",
-        default=None)
-    shared_arguments.add_argument(  # Preset fields
-        "-pF",
-        "--presetfields",
-        help="Can be 'base' (a set of basic fields), or 'explore' which included population " \
-             "frequencies and various effect prediction scores in addition to the base " \
-             "fields. Can include user-defined sets of fields in the presets.config file.",
-        default="base")
-    shared_arguments.add_argument(  # Extra fields
-        "-eF",
-        "--extrafields",
-        help="A comma separated list of fields to include in addition to the chosen presets.",
-        default=None)
+    shared_arguments.add_argument("-i", "--input",
+                                  help="Input database to query.",
+                                  required=True)
+    shared_arguments.add_argument("-c", "--presets_config",
+                                  help=helptext_dict["presets_config"],
+                                  default="presets.config")
+    shared_arguments.add_argument("-pf", "--presetfilter",
+                                  help=helptext_dict["presetfilter"],
+                                  default="standard_transcripts")
+    shared_arguments.add_argument("-ef", "--extrafilter",
+                                  help=helptext_dict["extrafilter"],
+                                  default=None)
+    shared_arguments.add_argument("-pF", "--presetfields",
+                                  help=helptext_dict["presetfields"],
+                                  default="base")
+    shared_arguments.add_argument("-eF", "--extrafields",
+                                  help=helptext_dict["extrafields"],
+                                  default=None)
     # Below are manual options that will override defaults
-    shared_arguments.add_argument(  # Manual filters
-        "-f",
-        "--filter",
-        help="Filter string in SQL WHERE structure, overwrites presets.",
-        default=None)
-    shared_arguments.add_argument(  # Manual fields
-        "-F",
-        "--fields",
-        help="Comma separated list of fields to extract, overwrites presets.",
-        default=None)
+    shared_arguments.add_argument("-f", "--filter", help=helptext_dict["filter"], default=None)
+    shared_arguments.add_argument("-F", "--fields", help=helptext_dict["fields"], default=None)
     # Need to add a an argument for transcript lists, not sure whether to take a
     # file or string as input
 
     # Setting up subparsers
-    subparsers = parser.add_subparsers(
-        title="Modes", help="Mode to run in.", dest="mode")
-    # Sample parser
+    subparsers = parser.add_subparsers(title="Modes", help="Mode to run in.", dest="mode")
+    # Sample
     parser_sample = subparsers.add_parser("sample",
-                                          help="Searches for a given sample and returns a list " \
-                                               "of all variants present in that sample",
+                                          help=helptext_dict["sample"],
                                           parents=[shared_arguments])
-    parser_sample.add_argument(
-        "-o",
-        "--output",
-        help="File to write sample query table to.",
-        required=True)
-    parser_sample.add_argument(
-        "-S", "--sampleid", help="Sample ID to query", required=True)
-    # Might also want to add an argument that will take a list of samples/BSIDs
-    # Variant parser
-    parser_variant = subparsers.add_parser(
-        "variant",
-        help="Searches database for given variant.",
-        parents=[shared_arguments])
-    parser_variant.add_argument(
-        "-o",
-        "--output",
-        help="File to write variant query table to.",
-        required=True)
-    parser_variant.add_argument(
-        "-v",
-        "--variant",
-        help="Variant to query in HGVS format. E.g. NM_000059.3:c.6810_6817del",
-        required=True)
-    # Table parser
+    parser_sample.add_argument("-o", "--output",
+                               help=helptext_dict["output"],
+                               required=True)
+    parser_sample.add_argument("-S", "--sampleid",
+                               help=helptext_dict["sampleid"],
+                               required=True)
+    # Variant
+    parser_variant = subparsers.add_parser("variant",
+                                           help=helptext_dict["variant"],
+                                           parents=[shared_arguments])
+    parser_variant.add_argument("-o", "--output",
+                                help=helptext_dict["output"],
+                                required=True)
+    parser_variant.add_argument("-v", "--variant",
+                                help=helptext_dict["variantname"],
+                                required=True)
+    # Table
     parser_table = subparsers.add_parser("table",
-                                         help="Returns a table containing given fields and  " \
-                                              "filtered using given filtering options.",
+                                         help=helptext_dict["table"],
                                          parents=[shared_arguments])
-    parser_table.add_argument(
-        "-o", "--output", help="File to write output table to.", required=True)
-    # Info parser
-    parser_info = subparsers.add_parser(
-        "info",
-        help="Prints the fields present in the database",
-        parents=[shared_arguments])
+    parser_table.add_argument("-o", "--output",
+                              help=helptext_dict["output"],
+                              required=True)
+    # Info
+    parser_info = subparsers.add_parser("info",
+                                        help=helptext_dict["info"],
+                                        parents=[shared_arguments])
 
     arguments = vars(parser.parse_args())  # Parsing the arguments and storing as a dictionary
 
