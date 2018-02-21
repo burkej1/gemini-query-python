@@ -170,9 +170,9 @@ def parse_arguments():
         "variantname"   : "Variant to query in HGVS format. E.g. NM_000059.3:c.6810_6817del",
         "table"         : "Returns a table containing given fields and filtered using "      \
                           "given filtering options.",
-        "info"          : "Prints the fields present in the database"
+        "info"          : "Prints the fields present in the database",
+        "nofilter"      : "Flag. If set will include filtered variants in the output"
     }
-
     # Defining the argument parser
     # Top level parser
     parser = argparse.ArgumentParser(prog="gemini_wrapper")
@@ -196,12 +196,12 @@ def parse_arguments():
     shared_arguments.add_argument("-eF", "--extrafields",
                                   help=helptext_dict["extrafields"],
                                   default=None)
+    shared_arguments.add_argument("--nofilter",
+                                  help=helptext_dict["nofilter"],
+                                  action="store_true")
     # Below are manual options that will override defaults
     shared_arguments.add_argument("-f", "--filter", help=helptext_dict["filter"], default=None)
     shared_arguments.add_argument("-F", "--fields", help=helptext_dict["fields"], default=None)
-    # Need to add a an argument for transcript lists, not sure whether to take a
-    # file or string as input
-
     # Setting up subparsers
     subparsers = parser.add_subparsers(title="Modes", help="Mode to run in.", dest="mode")
     # Sample

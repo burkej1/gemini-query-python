@@ -60,14 +60,19 @@ class QueryConstructor(object):
         userfilter_manual = self.args_dict["filter"]
         if userfilter_manual is not None:
             # If filter is manually defined return as is
-            return userfilter_manual
+            returnfilter = userfilter_manual
         elif userfilter_extra is not None:
             # If an extra filter is supplied, combine with the preset
-            return "{presetfilter} AND {userfilter}".format(presetfilter=presetfilter, 
-                                                            userfilter=userfilter_extra)
+            returnfilter = "{presetfilter} AND {userfilter}" \
+                .format(presetfilter=presetfilter,
+                        userfilter=userfilter_extra)
         else:
             # Otherwise return just the preset filter
-            return presetfilter
+            returnfilter = presetfilter
+        if self.args_dict["nofilter"]:
+            # If the nofilter flag is set remove the filter part of the filter
+            returnfilter = re.sub("AND filter IS NULL", "", returnfilter)
+        return returnfilter
 
     def query_fields(self):
         """Returns a formatted list of fields for the GEMINI query"""
