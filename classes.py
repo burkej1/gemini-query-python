@@ -1,130 +1,103 @@
-"""This primarily contains the options class with some of useful methods"""
+"""Contains classes for handling the presets.config yaml file and constructing
+gemini queries."""
+from __future__ import print_function
 import re
+import yaml
+
+class Presets(object):
+    """Reads preset options from the supplied config file"""
+    def __init__(self, presets_config):
+        with open(presets_config, 'r') as presets_input:
+            try:
+                presets = yaml.load(presets_input)
+            except yaml.YAMLError, exc:
+                print("Error loading presets config file.")
+                raise exc
+        self.presets = presets
+
+    def get_preset(self, key):
+        """Gets a preset from the config file using the given key"""
+        return self.presets[key]
+
+    def format_transcripts(self, t_or_g):
+        """Formats the supplied list of transcripts. Can return a list of genes or
+        transcripts depending on the t_or_g argument value."""
+        genes = [
+            transcript.split(':')[0] for transcript in self.get_preset("transcripts")
+        ]
+        genes = " AND ".join([
+            "gene != '" + gene + "'" for gene in genes
+        ])
+        transcripts = [
+            transcript.split(':')[1] for transcript in self.get_preset("transcripts")
+        ]
+        transcripts = " OR ".join([
+            "transcript = '" + transcript + "'"
+            for transcript in transcripts
+        ])
+        if t_or_g == "transcripts":
+            return transcripts
+        elif t_or_g == "genes":
+            return genes
 
 
-class Options(object):
-    """A container to hold various default values and incorporate any values passed
-    as arguments."""
+class QueryConstructor(object):
+    """Contains variables and methods for constructing gemini queries from arguments
+    and/or the presets.config file. Takes the arguments dictionary from argparse and
+    the presets object when created. Methods use these and return specific gemini
+    queries when called. The values could be supplied to the functions when called but
+    this way makes the calls a bit cleaner."""
 
-    def __init__(self):
-        self.base_fields = [  # Basic fields
-            "gene",
-            "impact",
-            "is_lof",
-            "chrom",
-            "start",
-            "end",
-            "ref",
-            "alt",
-            "filter",
-            "vep_pick",  # TEMP
-            "transcript",  # TEMP
-            "vep_hgvsc",
-            "vep_hgvsp",
-            "vep_brcaex_hgvs_cdna",
-            "vep_brcaex_hgvs_protein",
-            "vep_brcaex_clinical_significance_enigma",
-            "vep_brcaex_date_last_evaluated_enigma",
-            "num_het",
-            "num_hom_alt"
-        ]
-        self.explore_fields = [ 
-            # Population frequencies
-            "vep_exac_af",
-            "vep_exac_af_nfe",
-            "vep_gnomad_af_nfe",
-            # Effect prediction
-            "vep_cadd_phred",
-            "vep_cadd_raw",
-            "vep_rvl_revel_score",
-            "polyphen_pred",
-            "polyphen_score",
-            "sift_pred",
-            "sift_score",
-            # Splicing
-            "vep_ada_score",
-            "vep_rf_score",
-            "vep_maxentscan_alt",
-            "vep_maxentscan_diff",
-            "vep_maxentscan_ref",
-        ]
-        self.user_fields = [  # User supplied fields
-        ]
-        self.where_filters = "(vep_pick = 1 AND filter IS NULL)"  # Default filter
-        self.user_filters = None  # User supplied filters
-        self.transcripts = [
-            "BRCA1:NM_007294.3",  # BRCA1 transcript (vep gets this one wrong).
-            "BRCA2:NM_000059.3"
-        ]
-        self.overwrite_fields = False
-        self.overwrite_filters = False
-        self.exclude_filtered = True  # Exclude filtered variants
-        # To be populated at the end of argument incorporation and subsequently
-        # used by all table-producing functions
-        self.final_filter = None
-        self.final_fields = None
+    def __init__(self, arguments, presets):
+        self.args_dict = arguments
+        self.presets_o = presets
 
-    def update_with_arguments(self, args):
-        """Updates internal values based on passed arguments"""
-        # Arguments that overwrite defaults/presets
-        if args["fields"] is not None:
-            # Replace default fields with user supplied fields if given
-            self.user_fields = args["fields"].split(',')
-            self.overwrite_fields = True
-        if args["filters"] is not None:
-            # Replace filtering thresholds with a user supplied string, disables presetfilter
-            self.overwrite_filters = True
-            self.where_filters = args["filters"]
-        # Non-overwriting arguments
-        if args["presetfilter"] is not None and not self.overwrite_filters:
-            self.where_filters = self.get_predefined_filter(args["presetfilter"])
-        if args["extrafilter"] is not None and not self.overwrite_fields:
-            self.user_filters = args["extrafilter"]
-        if args["extrafields"] is not None and not self.overwrite_fields:
-            self.user_fields = args["extrafields"].split(',')
-        # Populating final filter and field variables
-        if not self.overwrite_fields:
-            if args["presetfields"] == "base":
-                self.final_fields = self.base_fields + self.user_fields
-            elif args["presetfields"] == "explore":
-                self.final_fields = self.base_fields + self.explore_fields + self.user_fields
-            else:
-                self.final_fields = self.base_fields + self.user_fields
+    def query_filter(self):
+        """Returns the query filter constructed from arguments and presets"""
+        # Getting the preset filter as a string
+        presetfilter = self.get_predefined_filter()
+        userfilter_extra = self.args_dict["extrafilter"]
+        userfilter_manual = self.args_dict["filter"]
+        if userfilter_manual is not None:
+            # If filter is manually defined return as is
+            return userfilter_manual
+        elif userfilter_extra is not None:
+            # If an extra filter is supplied, combine with the preset
+            return "{presetfilter} AND {userfilter}".format(presetfilter=presetfilter, 
+                                                            userfilter=userfilter_extra)
         else:
-            self.final_fields = self.user_fields
-        if not self.overwrite_filters:
-            if args["extrafilter"] is not None:
-                self.final_filter = "({presetf} AND {userf})".format(presetf=self.where_filters,
-                                                                     userf=self.user_filters)
-            else:
-                self.final_filter = self.where_filters
-        elif self.user_filters:
-            self.final_filter = self.user_filters
+            # Otherwise return just the preset filter
+            return presetfilter
 
-    def get_predefined_filter(self, where_argument):
+    def query_fields(self):
+        """Returns a formatted list of fields for the GEMINI query"""
+        # Using the preset field arg to pull a list of fields from the config
+        presetfields = self.presets_o.get_preset(self.args_dict["presetfields"])
+        # Directly extracting extra and manually defined fields from args
+        userfields_extra = self.args_dict["extrafields"]
+        userfields_manual = self.args_dict["fields"]
+        if userfields_manual is not None:
+            # If fields are manually specified return only those fields
+            return ', '.join(userfields_manual)
+        elif userfields_extra is not None:
+            # If extra fields are specified return those combined with the chosen (or default)
+            # preset.
+            return ', '.join(presetfields + userfields_extra)
+        else:
+            # If there are no extra fields and no fields are manually defined return the presets
+            return ', '.join(presetfields)
+
+    def get_predefined_filter(self):
         """Translates simple arguments to predefined where queries."""
         # # Each query is designed as a block so each block can be combined with an AND or OR
         # Standard filtering criteria, primary annotation blocks and variants that passed filters
         standard = "(vep_pick = 1 AND filter = None)"
 
         # Variants in primary transcript blocks and in requested transcripts
-        genes_to_exclude = [
-            transcript.split(':')[0] for transcript in self.transcripts
-        ]
-        genes_to_exclude = " AND ".join([
-            "gene != '" + gene + "'" for gene in genes_to_exclude
-        ])
-        transcripts_to_include = [
-            transcript.split(':')[1] for transcript in self.transcripts
-        ]
-        transcripts_to_include = " OR ".join([
-            "transcript = '" + transcript + "'"
-            for transcript in transcripts_to_include
-        ])
         standard_transcripts = "((vep_pick = 1 AND filter IS NULL AND ( {exclude} )) " \
                                "OR (( {include} ) AND filter IS NULL))" \
-                                   .format(exclude=genes_to_exclude,
-                                           include=transcripts_to_include)
+                                   .format(exclude=self.presets_o.format_transcripts("genes"),
+                                           include=self.presets_o.format_transcripts("transcripts"))
 
         # As above but including variants that didn't pass filters
         standard_transcripts_nofilter = re.sub("AND filter IS NULL", "",
@@ -156,16 +129,16 @@ class Options(object):
         }
 
         # Checking to see if one or two filter settings where supplied
-        if ',' in where_argument:
-            split_plaintext = where_argument.split(',')
+        if ',' in self.args_dict["presetfilter"]:
+            split_plaintext = self.args_dict["presetfilter"].split(',')
             where_filter_one = translation_dictionary[split_plaintext[0]]
             where_filter_two = translation_dictionary[split_plaintext[1]]
             where_filter = "{one} AND {two}".format(
                 one=where_filter_one, two=where_filter_two)
         else:
-            where_filter = translation_dictionary[where_argument]
+            where_filter = translation_dictionary[self.args_dict["presetfilter"]]
 
-        # Translating the request and updating the where filter option
+        # Returning the preset filter string
         return where_filter
 
 
