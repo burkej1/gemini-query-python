@@ -23,6 +23,26 @@ base:
 
 # Fields for exploring variants
 explore:
+    # Base fields
+    - gene
+    - impact
+    - is_lof
+    - chrom
+    - start
+    - end
+    - ref
+    - alt
+    - filter
+    - vep_pick
+    - transcript
+    - vep_hgvsc
+    - vep_hgvsp
+    - vep_brcaex_hgvs_cdna
+    - vep_brcaex_hgvs_protein
+    - vep_brcaex_clinical_significance_enigma
+    - vep_brcaex_date_last_evaluated_enigma
+    - num_het
+    - num_hom_alt
     # Population frequencies
     - vep_exac_af
     - vep_exac_af_nfe

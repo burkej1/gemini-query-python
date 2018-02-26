@@ -22,15 +22,9 @@ class Presets(object):
     def format_transcripts(self, t_or_g):
         """Formats the supplied list of transcripts. Can return a list of genes or
         transcripts depending on the t_or_g argument value."""
-        genes = [
-            transcript.split(':')[0] for transcript in self.get_preset("transcripts")
-        ]
-        genes = " AND ".join([
-            "gene != '" + gene + "'" for gene in genes
-        ])
-        transcripts = [
-            transcript.split(':')[1] for transcript in self.get_preset("transcripts")
-        ]
+        genes = [transcript.split(':')[0] for transcript in self.get_preset("transcripts")]
+        genes = " AND ".join(["gene != '" + gene + "'" for gene in genes])
+        transcripts = [transcript.split(':')[1] for transcript in self.get_preset("transcripts")]
         transcripts = " OR ".join([
             "transcript = '" + transcript + "'"
             for transcript in transcripts
@@ -87,7 +81,7 @@ class QueryConstructor(object):
         elif userfields_extra is not None:
             # If extra fields are specified return those combined with the chosen (or default)
             # preset.
-            return ', '.join(presetfields + userfields_extra)
+            return ', '.join(presetfields + userfields_extra.split(','))
         else:
             # If there are no extra fields and no fields are manually defined return the presets
             return ', '.join(presetfields)
@@ -145,7 +139,3 @@ class QueryConstructor(object):
 
         # Returning the preset filter string
         return where_filter
-
-
-
-
