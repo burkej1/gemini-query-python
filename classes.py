@@ -77,14 +77,19 @@ class QueryConstructor(object):
         userfields_manual = self.args_dict["fields"]
         if userfields_manual is not None:
             # If fields are manually specified return only those fields
-            return ', '.join(userfields_manual)
+            returnfields = ', '.join(userfields_manual)
         elif userfields_extra is not None:
             # If extra fields are specified return those combined with the chosen (or default)
             # preset.
-            return ', '.join(presetfields + userfields_extra.split(','))
+            returnfields = ', '.join(presetfields + userfields_extra.split(','))
         else:
             # If there are no extra fields and no fields are manually defined return the presets
-            return ', '.join(presetfields)
+            returnfields = ', '.join(presetfields)
+        # if self.args_dict["check_undrrover"]:
+        #     # If the check undrrover flag is set add the UR fields
+        #     returnfields += ", vep_undrrover_sample, vep_undrrover_pct, " \
+        #                     "vep_undrrover_nv, vep_undrrover_np"
+        return returnfields
 
     def get_predefined_filter(self):
         """Translates simple arguments to predefined where queries."""
@@ -139,3 +144,36 @@ class QueryConstructor(object):
 
         # Returning the preset filter string
         return where_filter
+
+
+class QueryProcessing(object):
+    """Takes the output of a gemini query and processes it for output"""
+    def __init__(self, gq, UR=False):
+        self.gq = gq
+        self.smptoidx = gq.sample_to_idx
+        self.header = str(gq.header)
+
+    def flattened_lines(self):
+        """Flattens the output to one line per sample and appends sample genotype info"""
+        flat_hdr = '\t'.join(self.header.split('\t')[:-3]) + "{\tSample\tGT Filter\tAlt Frequency\tRef Depth\tAlt Depth"
+        table_lines = [flat_hdr]
+        for row in self.gq:
+            samples = row["variant_samples"]  # Getting the variant samples as a list
+            for sample in samples:
+                smpidx = self.smptoidx[sample]
+                sampleline = '\t'.join(str(row).split('\t')[:-3]) + \
+                    "\t{SMP}\t{FT}\t{FREQ}\t{REFDP}\t{ALTDP}" \
+                        .format(SMP=sample,
+                                FT=row["gt_filters"][smpidx],
+                                FREQ=row["gt_alt_freqs"][smpidx],
+                                REFDP=row["gt_ref_depths"][smpidx],
+                                ALTDP=row["gt_alt_depths"][smpidx])
+                table_lines.append(sampleline)
+        return table_lines
+
+    def regular_lines(self):
+        """Returns the lines with no changes"""
+        table_lines = [self.header]
+        for row in self.gq:
+            table_lines.append(str(row))
+        return table_lines

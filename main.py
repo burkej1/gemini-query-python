@@ -1,33 +1,9 @@
-"""Main"""
+"""Contains primary functions for each mode and the main() function."""
 from __future__ import print_function
 import argparse
 import re
 import classes
 from gemini import GeminiQuery  # Importing the gemini query class
-
-
-def undrrover_concordance(gemini_row):
-    """Calculates concordance between UNDR-ROVER and GATK sample lists"""
-    undrrover_l = gemini_row["vep_undrrover_sample"].split('&')
-    undrrover_pct = gemini_row["vep_undrrover_pct"].split('&')
-    undrrover_s = set(undrrover_l)
-    # Undrrover strips the _S123 from the end of the s, doing the same to GATK
-    gatk_l = [re.sub(r"_S\d\d\d", "", sample) for sample in gemini_row["variant_samples"]]
-    gatk_s = set(gatk_l)
-    concordant_s = gatk_s.intersection(undrrover_s)
-    gatk_only = gatk_s.difference(undrrover_s)
-    undrrover_only = undrrover_s.difference(gatk_s)
-    try:
-        concordance_percentage = float(len(concordant_s)) / float(len(gatk_s))
-    except ZeroDivisionError:
-        # Indicates a variant with no GATK samples, not sure how this can happen yet
-        concordance_percentage = 999
-    # Using the original lists to match the samples to their pct
-    undrrover_only_ordered = [sample for sample in undrrover_l if sample in undrrover_only]
-    undrrover_only_pct = [undrrover_pct[undrrover_l.index(sample)]
-                          for sample
-                          in undrrover_l if sample in undrrover_only]
-    return concordance_percentage, gatk_only, undrrover_only
 
 
 def get_fields(db):
@@ -37,36 +13,45 @@ def get_fields(db):
     return db.header
 
 
+def create_concordance_dict(gd):
+    # Creating a dictionary keyed by HGVS (extra safeguard against matching) containing
+    # UNDR ROVER concordance information for the keyed variants.
+    cd = {}
+    query = "SELECT {fields} FROM variants WHERE {where_filter}" \
+        .format(fields="vep_hgvsc, vep_undrrover_sample, vep_undrrover_pct, " \
+                       "vep_undrrover_nv, vep_undrrover_np",
+                where_filter=options.query_filter())
+    gd.run(query, show_variant_samples=True)
+    for row in gd:
+        cd[gs] =
+        ur_samples = row["vep_undrrover_sample"].split('&')
+        ur_pct = row["vep_undrrover_pct"].split('&')
+        ur_nv = row["vep_undrrover_nv"].split('&')
+        ur_np = row["vep_undrrover_np"].split('&')
+        for n in len(ur_samples):
+            pass
+
+
 def get_table(geminidb, args, options):
     """Returns a table of variants based on the fields and filter options provided"""
     if args["check_undrrover"]:
-        query = "SELECT {fields} FROM variants WHERE {where_filter}" \
-                    .format(fields=options.query_fields() +
-                            ", vep_undrrover_sample, vep_undrrover_pct",
-                            where_filter=options.query_filter())
-        geminidb.run(query, show_variant_samples=True)
-        table_lines = [str(geminidb.header) +
-                       "\tConcordance Percentage\tGATK Only Samples\tUNDR-ROVER Only Samples"]
-        for row in geminidb:
-            conc_pct, gatk_only, undrrover_only = undrrover_concordance(row)
-            metricsrow = str(row) + "\t{conc}\t{gatk}\t{undrrover}".format(conc=conc_pct,
-                                                                           gatk=gatk_only,
-                                                                           undrrover=undrrover_only)
-            table_lines.append(metricsrow)
-        return(table_lines)
+        URconc_dict = create_concordance_dict(geminidb)
+
+    # Constructing the query
+    query = "SELECT {fields} FROM variants WHERE {where_filter}" \
+                .format(fields=options.query_fields(),
+                        where_filter=options.query_filter())
+    # Run the query. If flattened is set to true samples must be included.
+    geminidb.run(query, show_variant_samples=(args["hidesamples"] or args["flattened"]))
+
+
+
+    # Using the QueryProcessing class to return the query in the chosen output format
+    query_result = classes.QueryProcessing(geminidb)
+    if args["flattened"]:
+        return query_result.flattened_lines()
     else:
-        query = "SELECT {fields} FROM variants WHERE {where_filter}" \
-                    .format(fields=options.query_fields(),
-                            where_filter=options.query_filter())
-        # print("Generating a table from the following query:")
-        # print(query)
-        geminidb.run(
-            query, show_variant_samples=True
-        )  # Hardcoded the boolean here, might want to change
-        table_lines = [str(geminidb.header)]
-        for row in geminidb:
-            table_lines.append(str(row))
-        return table_lines
+        return query_result.regular_lines()
 
 
 def get_sample_variants(geminidb, args, options):
@@ -106,7 +91,7 @@ def get_sample_variants(geminidb, args, options):
           "variants present in the given sample:")
     print(query)
     print(gt_filter)
-    geminidb.run(query, gt_filter, show_variant_samples=True)
+    geminidb.run(query, gt_filter, show_variant_samples=args["hidesamples"])
     table_lines = [str(geminidb.header)]
     for row in geminidb:
         table_lines.append(str(row))
@@ -127,7 +112,7 @@ def get_variant_information(geminidb, args, options):
             is_found = False
             varquery = "SELECT {fields} FROM variants WHERE vep_hgvsc == '{var}'" \
                 .format(fields=options.query_fields(), var=var)
-            geminidb.run(varquery, show_variant_samples=True)
+            geminidb.run(varquery, show_variant_samples=args["hidesamples"])
             for varline in geminidb:
                 is_found = True  # Set to found if there is at least one line in the db
                 varlines.append("{var}\tTRUE\t".format(var=var) + str(varline))
@@ -137,15 +122,17 @@ def get_variant_information(geminidb, args, options):
         return([query_header] + varlines)
 
     gt_info_fields = ["gt_ref_depths", "gt_alt_depths", "gt_alt_freqs", "gt_quals"]
+    # Should implement fuzzy matching with LIKE
     get_carriers_query = "SELECT {fields} FROM variants WHERE vep_hgvsc == '{variant}'" \
                              .format(fields=options.query_fields(), variant=variant)
-    geminidb.run(get_carriers_query, show_variant_samples=True)
+    geminidb.run(get_carriers_query, show_variant_samples=args["hidesamples"])
     variant_matches = []
     original_header = geminidb.header
     for row in geminidb:
         original_variant_info = str(row)
         variant_matches.append(row["variant_samples"])
 
+    # Need to write handling for multiple matches
     if len(variant_matches) > 1:
         print("Multiple matches found, exiting.")
         quit()
@@ -228,7 +215,9 @@ def parse_arguments():
         "info"           : "Prints the fields present in the database",
         "nofilter"       : "Flag. If set will include filtered variants in the output",
         "check_undrrover": "Flag. If set the table output will include UNDR-ROVER "           \
-                           "concordance metrics."
+                           "concordance metrics.",
+        "flattened"      : "Flag. If set will output a table with one sample per line.",
+        "hidesamples"    : "Flag. Hide sample lists."
     }
     # Defining the argument parser
     # Top level parser
@@ -240,7 +229,7 @@ def parse_arguments():
                                   required=True)
     shared_arguments.add_argument("-c", "--presets_config",
                                   help=helptext_dict["presets_config"],
-                                  default="presets.config")
+                                  default="presets.yaml")
     shared_arguments.add_argument("-pf", "--presetfilter",
                                   help=helptext_dict["presetfilter"],
                                   default="standard_transcripts")
@@ -256,6 +245,12 @@ def parse_arguments():
     shared_arguments.add_argument("--nofilter",
                                   help=helptext_dict["nofilter"],
                                   action="store_true")
+    shared_arguments.add_argument("--flattened",
+                                  help=helptext_dict["flattened"],
+                                  action="store_true")
+    shared_arguments.add_argument("--hidesamples",
+                                  help=helptext_dict["hidesamples"],
+                                  action="store_false")
     # Below are manual options that will override defaults
     shared_arguments.add_argument("-f", "--filter", help=helptext_dict["filter"], default=None)
     shared_arguments.add_argument("-F", "--fields", help=helptext_dict["fields"], default=None)
