@@ -3,6 +3,18 @@
 base:
     - gene
     - impact
+    - vep_hgvsc
+    - vep_hgvsp
+    - vep_brcaex_clinical_significance_enigma
+    - vep_brcaex_date_last_evaluated_enigma
+    - num_het
+    - num_hom_alt
+    - filter
+
+# Extra fields for testing purposes
+base_testing:
+    - gene
+    - impact
     - is_lof
     - chrom
     - start

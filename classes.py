@@ -25,10 +25,8 @@ class Presets(object):
         genes = [transcript.split(':')[0] for transcript in self.get_preset("transcripts")]
         genes = " AND ".join(["gene != '" + gene + "'" for gene in genes])
         transcripts = [transcript.split(':')[1] for transcript in self.get_preset("transcripts")]
-        transcripts = " OR ".join([
-            "transcript = '" + transcript + "'"
-            for transcript in transcripts
-        ])
+        transcripts = " OR ".join(["transcript == '" + transcript + "'"
+            for transcript in transcripts])
         if t_or_g == "transcripts":
             return transcripts
         elif t_or_g == "genes":
@@ -85,70 +83,71 @@ class QueryConstructor(object):
         else:
             # If there are no extra fields and no fields are manually defined return the presets
             returnfields = ', '.join(presetfields)
-        # if self.args_dict["check_undrrover"]:
-        #     # If the check undrrover flag is set add the UR fields
-        #     returnfields += ", vep_undrrover_sample, vep_undrrover_pct, " \
-        #                     "vep_undrrover_nv, vep_undrrover_np"
+        if self.args_dict["check_undrrover"]:
+            # If the check undrrover flag is set add the UR fields
+            returnfields += ", vep_undrrover_sample, vep_undrrover_pct, " \
+                            "vep_undrrover_nv, vep_undrrover_np"
         return returnfields
 
     def get_predefined_filter(self):
         """Translates simple arguments to predefined where queries."""
-        # # Each query is designed as a block so each block can be combined with an AND or OR
-        # Standard filtering criteria, primary annotation blocks and variants that passed filters
-        standard = "(vep_pick = 1 AND filter = None)"
-
-        # Variants in primary transcript blocks and in requested transcripts
-        standard_transcripts = "((vep_pick = 1 AND filter IS NULL AND ( {exclude} )) " \
-                               "OR (( {include} ) AND filter IS NULL))" \
-                                   .format(exclude=self.presets_o.format_transcripts("genes"),
-                                           include=self.presets_o.format_transcripts("transcripts"))
-
-        # As above but including variants that didn't pass filters
-        standard_transcripts_nofilter = re.sub("AND filter IS NULL", "",
-                                               standard_transcripts)
-
-        # # Extra filtering thresholds that can be combined with the above
-        # LoF variants
+        # Filter blocks
+        # SQL filter blocks that can be combined to build query filters
+        # Transcripts to include and genes to ignore the vep_pick for (those with given transcripts)
+        exclude = self.presets_o.format_transcripts("genes")
+        include = self.presets_o.format_transcripts("transcripts")
+        # Variant filter block
+        variant_filter = "(filter IS NULL)"
+        # Vep pick block
+        vep_pick = "(vep_pick == 1)"
+        # LoF block
         lof = "(impact = 'frameshift_variant' OR  " \
               "impact = 'stop_gained' OR  " \
               "impact = 'splice_donor_variant' OR  " \
               "impact = 'splice_acceptor_variant' OR  " \
               "is_lof = 1)"
+        # BRCA Exchange pathogenic block
+        brcaex_pathogenic = "(vep_brcaex_clinical_significance_enigma == 'Pathogenic')"
+        # ATM c.7271T>G block
+        atm_7271 = "(vep_hgvsc == 'NM_000051.3:c.7271T>G')"
+        # Clinically reportable genes / ATM c.7271T>G
+        reportable_genes = "(gene == 'BRCA1' OR gene == 'BRCA2' OR gene == 'TP53' OR " \
+                           "vep_hgvsc == 'NM_000051.3:c.7271T>G' OR gene == 'PALB2')"
 
-        # Pathogenic (BRCA exchange) and LoF variants
-        lof_pathogenic = "(impact = 'frameshift_variant' OR  " \
-                         "impact = 'stop_gained' OR  " \
-                         "impact = 'splice_donor_variant' OR  " \
-                         "impact = 'splice_acceptor_variant' OR  " \
-                         "is_lof = 1 OR " \
-                         "vep_brcaex_clinical_significance_enigma = 'Pathogenic')"
+        # Combining blocks to create filters (make sure they're surrounded by brackets so
+        # they play nice with user filters)
+        standard = "((({exclude} AND {vep_pick}) OR {include}))".format(
+            include=include,
+            exclude=exclude,
+            vep_pick=vep_pick)
+        lof = "({std} AND {lof})".format(
+            std=standard,
+            lof=lof)
+        lof_pathogenic = "({std} AND ({lof} OR {brcaex}))".format(
+            std=standard,
+            lof=lof,
+            brcaex=brcaex_pathogenic)
+        reportable = "({std} AND {rep_genes} AND ({lof_path} OR {atm_7271}))".format(
+            std=standard,
+            rep_genes=reportable_genes,
+            lof_path=lof_pathogenic,
+            atm_7271=atm_7271)
 
         # Instantiating the dictionary
         translation_dictionary = {
             "standard": standard,
-            "standard_transcripts": standard_transcripts,
-            "standard_transcripts_nofilter": standard_transcripts_nofilter,
             "lof": lof,
-            "lof_pathogenic": lof_pathogenic
+            "lof_pathogenic": lof_pathogenic,
+            "reportable": reportable
         }
-
-        # Checking to see if one or two filter settings where supplied
-        if ',' in self.args_dict["presetfilter"]:
-            split_plaintext = self.args_dict["presetfilter"].split(',')
-            where_filter_one = translation_dictionary[split_plaintext[0]]
-            where_filter_two = translation_dictionary[split_plaintext[1]]
-            where_filter = "{one} AND {two}".format(
-                one=where_filter_one, two=where_filter_two)
-        else:
-            where_filter = translation_dictionary[self.args_dict["presetfilter"]]
-
+        where_filter = translation_dictionary[self.args_dict["presetfilter"]]
         # Returning the preset filter string
         return where_filter
 
 
 class QueryProcessing(object):
     """Takes the output of a gemini query and processes it for output"""
-    def __init__(self, gq, UR=False):
+    def __init__(self, gq):
         self.gq = gq
         self.smptoidx = gq.sample_to_idx
         self.header = str(gq.header)
@@ -171,9 +170,93 @@ class QueryProcessing(object):
                 table_lines.append(sampleline)
         return table_lines
 
+    def flattened_lines_ur(self):
+        """Flattens the output to one line per sample and appends sample genotype info
+        and UNDRROVER concordance info"""
+        flat_hdr = '\t'.join(self.header.split('\t')[:-7]) + \
+            "\tSample\tGT Filter\tAlt Frequency\tRef Depth\tAlt Depth\t" \
+            "IN UNDRROVER\tUR PCT\tUR NP\tUR PASS"
+        table_lines = [flat_hdr]
+        for row in self.gq:
+            samples = row["variant_samples"]  # Getting the variant samples as a list
+            conc_samples, conc_pct, ur_dict = self.check_undrrover(row) # Getting undr rover info
+            for sample in samples:
+                ur_sample = re.sub(r'_S\d+', '', sample)
+                ur_pct = ur_dict[ur_sample]["pct"] if ur_sample in ur_dict else 0.0
+                ur_np = ur_dict[ur_sample]["np"] if ur_sample in ur_dict else 0
+                ur_pass = "TRUE" if ur_sample in ur_dict and ur_dict[ur_sample]["PASS"] else "FALSE"
+                in_ur = "TRUE" if ur_sample in ur_dict else "FALSE"
+                smpidx = self.smptoidx[sample]
+                sampleline = '\t'.join(str(row).split('\t')[:-7]) + \
+                    "\t{SMP}\t{FT}\t{FREQ}\t{REFDP}\t{ALTDP}\t{IUR}\t{URPCT}\t{URNP}\t{URPASS}" \
+                        .format(SMP=sample,
+                                FT=row["gt_filters"][smpidx],
+                                FREQ=row["gt_alt_freqs"][smpidx],
+                                REFDP=row["gt_ref_depths"][smpidx],
+                                ALTDP=row["gt_alt_depths"][smpidx],
+                                IUR=in_ur,
+                                URPCT=ur_pct,
+                                URNP=ur_np,
+                                URPASS=ur_pass)
+                table_lines.append(sampleline)
+        return table_lines
+
     def regular_lines(self):
         """Returns the lines with no changes"""
         table_lines = [self.header]
         for row in self.gq:
-            table_lines.append(str(row))
+            output_line = str(row)
+            table_lines.append(output_line)
         return table_lines
+
+    def regular_lines_ur(self):
+        """Returns the lines with no changes, UNDR ROVER concordance added"""
+        # Deleting UNDR ROVER columns by index
+        header = self.header.split('\t')
+        del header[-7:-3]
+        header = '\t'.join(header)
+        table_lines = [header + "\tUNDR-ROVER Concordance\tConcordant Samples"]
+        for row in self.gq:
+            output_line = str(row).split('\t')
+            del output_line[-7:-3]
+            output_line = '\t'.join(output_line)
+            conc_samples, conc_pct, ur_dict = self.check_undrrover(row)
+            output_line += "\t{pct}\t{smpl}".format(pct=conc_pct, smpl=', '.join(conc_samples))
+            table_lines.append(output_line)
+        return table_lines
+
+    def check_undrrover(self, row):
+        """Takes a gemini line containing UNDR ROVER and sample information and returns concordance
+        metrics"""
+        # GATK samplelist (removing _S123 to match UNDR ROVER)
+        gatk_samples = [re.sub(r'_S\d+', '', s) for s in row["variant_samples"]]
+        # Getting UNDR ROVER information
+        ur_samples = row["vep_undrrover_sample"].split('&')
+        # Check for empty sample list (if empty the first element will be an empty string)
+        if not ur_samples[0]:
+            return [], 0.00, {}
+        ur_pct = row["vep_undrrover_pct"].split('&')
+        ur_nv = row["vep_undrrover_nv"].split('&')
+        ur_np = row["vep_undrrover_np"].split('&')
+        # Storing the UR metrics for each UR sample (assuming ordered lists)
+        ur_dict = {}
+        for n in range(0, len(ur_samples)):
+            # Checking to see if the call passes in this sample
+            # Currently (greater than 25% and minimum 25 pairs coverage (DP of 50))
+            if float(ur_pct[n]) > 25.0 and int(ur_np[n]) > 25:
+                PASS = True
+            else:
+                PASS = False
+            ur_dict[ur_samples[n]] = {
+                "pct": float(ur_pct[n]),
+                "nv": int(ur_nv[n]),
+                "np": int(ur_np[n]),
+                "PASS": PASS
+            }
+        # Calculating metrics
+        gatk_set = set(gatk_samples)
+        ur_pass_set = set([s for s in ur_dict if ur_dict[s]["PASS"]])
+        conc_samples = gatk_set.intersection(ur_pass_set) if ur_pass_set else set()
+        conc_pct = float(len(conc_samples)) / float(len(gatk_set))
+        # Returning concordant samples (high confidence) the percentage and the metrics dictionary
+        return conc_samples, conc_pct, ur_dict

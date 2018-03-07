@@ -12,31 +12,9 @@ def get_fields(db):
     db.run(query)
     return db.header
 
-
-def create_concordance_dict(gd):
-    # Creating a dictionary keyed by HGVS (extra safeguard against matching) containing
-    # UNDR ROVER concordance information for the keyed variants.
-    cd = {}
-    query = "SELECT {fields} FROM variants WHERE {where_filter}" \
-        .format(fields="vep_hgvsc, vep_undrrover_sample, vep_undrrover_pct, " \
-                       "vep_undrrover_nv, vep_undrrover_np",
-                where_filter=options.query_filter())
-    gd.run(query, show_variant_samples=True)
-    for row in gd:
-        cd[gs] =
-        ur_samples = row["vep_undrrover_sample"].split('&')
-        ur_pct = row["vep_undrrover_pct"].split('&')
-        ur_nv = row["vep_undrrover_nv"].split('&')
-        ur_np = row["vep_undrrover_np"].split('&')
-        for n in len(ur_samples):
-            pass
-
-
+    
 def get_table(geminidb, args, options):
     """Returns a table of variants based on the fields and filter options provided"""
-    if args["check_undrrover"]:
-        URconc_dict = create_concordance_dict(geminidb)
-
     # Constructing the query
     query = "SELECT {fields} FROM variants WHERE {where_filter}" \
                 .format(fields=options.query_fields(),
@@ -44,10 +22,14 @@ def get_table(geminidb, args, options):
     # Run the query. If flattened is set to true samples must be included.
     geminidb.run(query, show_variant_samples=(args["hidesamples"] or args["flattened"]))
 
-
-
     # Using the QueryProcessing class to return the query in the chosen output format
     query_result = classes.QueryProcessing(geminidb)
+    if args["check_undrrover"]:
+        if args["flattened"]:
+            return query_result.flattened_lines_ur()
+        else:
+            return query_result.regular_lines_ur()
+
     if args["flattened"]:
         return query_result.flattened_lines()
     else:
@@ -232,7 +214,7 @@ def parse_arguments():
                                   default="presets.yaml")
     shared_arguments.add_argument("-pf", "--presetfilter",
                                   help=helptext_dict["presetfilter"],
-                                  default="standard_transcripts")
+                                  default="standard")
     shared_arguments.add_argument("-ef", "--extrafilter",
                                   help=helptext_dict["extrafilter"],
                                   default=None)
