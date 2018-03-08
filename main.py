@@ -12,7 +12,7 @@ def get_fields(db):
     db.run(query)
     return db.header
 
-    
+
 def get_table(geminidb, args, options):
     """Returns a table of variants based on the fields and filter options provided"""
     # Constructing the query
@@ -199,7 +199,8 @@ def parse_arguments():
         "check_undrrover": "Flag. If set the table output will include UNDR-ROVER "           \
                            "concordance metrics.",
         "flattened"      : "Flag. If set will output a table with one sample per line.",
-        "hidesamples"    : "Flag. Hide sample lists."
+        "hidesamples"    : "Flag. Hide sample lists.",
+        "genes"          : "List of genes to include. If not specified will include all"
     }
     # Defining the argument parser
     # Top level parser
@@ -211,7 +212,7 @@ def parse_arguments():
                                   required=True)
     shared_arguments.add_argument("-c", "--presets_config",
                                   help=helptext_dict["presets_config"],
-                                  default="presets.yaml")
+                                  default=None)
     shared_arguments.add_argument("-pf", "--presetfilter",
                                   help=helptext_dict["presetfilter"],
                                   default="standard")
@@ -233,6 +234,9 @@ def parse_arguments():
     shared_arguments.add_argument("--hidesamples",
                                   help=helptext_dict["hidesamples"],
                                   action="store_false")
+    shared_arguments.add_argument("--genes",
+                                  help=helptext_dict["genes"],
+                                  default=None)
     # Below are manual options that will override defaults
     shared_arguments.add_argument("-f", "--filter", help=helptext_dict["filter"], default=None)
     shared_arguments.add_argument("-F", "--fields", help=helptext_dict["fields"], default=None)

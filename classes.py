@@ -3,16 +3,20 @@ gemini queries."""
 from __future__ import print_function
 import re
 import yaml
+import config
 
 class Presets(object):
     """Reads preset options from the supplied config file"""
     def __init__(self, presets_config):
-        with open(presets_config, 'r') as presets_input:
-            try:
-                presets = yaml.load(presets_input)
-            except yaml.YAMLError, exc:
-                print("Error loading presets config file.")
-                raise exc
+        if presets_config:
+            with open(presets_config, 'r') as presets_input:
+                try:
+                    presets = yaml.load(presets_input)
+                except yaml.YAMLError, exc:
+                    print("Error loading presets config file.")
+                    raise exc
+        else:
+            presets = config.DEFAULT_PRESETS
         self.presets = presets
 
     def get_preset(self, key):
@@ -64,6 +68,10 @@ class QueryConstructor(object):
         if self.args_dict["nofilter"]:
             # If the nofilter flag is set remove the filter part of the filter
             returnfilter = re.sub("AND filter IS NULL", "", returnfilter)
+        if self.args_dict["genes"]:
+            genefilter = "(" + "' OR ".join("gene == '" + gene for gene in self.args_dict["genes"].split(',')) + "')"
+            returnfilter += " AND {}".format(genefilter)
+        print(returnfilter)
         return returnfilter
 
     def query_fields(self):

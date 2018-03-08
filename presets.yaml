@@ -1,4 +1,4 @@
-# # Default presets
+# # Example presets file
 # Basic fields to use
 base:
     - gene
