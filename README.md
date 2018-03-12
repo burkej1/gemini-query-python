@@ -12,7 +12,7 @@ source activate env-name
 conda install pip
 pip install yaml
 conda install -c bioconda gemini
-pip install gemini-query-python
+pip install git+https://github.com/burkej1/gemini-query-python
 ```
 
 ## Usage
