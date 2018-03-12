@@ -109,6 +109,23 @@ Returns a list of all variants present in a given sample. Full sample ID or BS I
 
 Returns a list of all fields present in the database.
 
+## Presets
+
+### Filter Presets
+
+There are several included filter presets:
+
+Name | Description
+------------ | -------------
+standard | All variants in vep_pick transcripts or given transcripts (by config or hard-coded). All preset filters include this unless otherwise stated.
+lof | All Loss of Function (LoF) variants.
+lof_pathogenic | All LoF variants and variants classified Pathogenic by BRCA exchange
+reportable | All LoF or Pathogenic by BRCA exchange variants in _BRCA1_, _BRCA2_, _TP53_, _PALB2_ and _ATM_:c.7271T>G.
+
+### Field Set Presets
+
+There are also several predefined sets of useful fields.
+
 ## Examples
 
 
