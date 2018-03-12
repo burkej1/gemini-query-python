@@ -17,7 +17,7 @@ pip install gemini-query-python
 
 ## Usage
 
-Can be run in four modes:
+Can be run in four modes sample, variant, table and info.
 
 ```
 usage: gemini_wrapper [-h] {sample,variant,table,info} ...
@@ -36,7 +36,10 @@ Modes:
     info                Prints the fields present in the database
 ```
 
-'table' to generate a table using a given set of filters containing a given set of fields.
+
+### Table
+
+Generates a table using a given set of filters containing a given set of fields.
 
 ```
 usage: gemini_wrapper table [-h] -i INPUT [-c PRESETS_CONFIG]
@@ -94,4 +97,18 @@ optional arguments:
                         concordance metrics.
 ```
 
+### Variant
+
+Searches the database for a given variant (using c. HGVS notation). The --partial option allows regex matching (not yet implemented).
+
+### Sample
+
+Returns a list of all variants present in a given sample. Full sample ID or BS ID only can be given.
+
+### Info
+
+Returns a list of all fields present in the database.
+
 ## Examples
+
+
