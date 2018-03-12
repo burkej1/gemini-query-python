@@ -71,7 +71,6 @@ class QueryConstructor(object):
         if self.args_dict["genes"]:
             genefilter = "(" + "' OR ".join("gene == '" + gene for gene in self.args_dict["genes"].split(',')) + "')"
             returnfilter += " AND {}".format(genefilter)
-        print(returnfilter)
         return returnfilter
 
     def query_fields(self):
