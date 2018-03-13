@@ -11,6 +11,9 @@ conda create -n env-name python=2.7
 source activate env-name
 conda install pip
 pip install pyyaml
+conda config --add channels defaults
+conda config --add channels conda-forge
+conda config --add channels bioconda
 conda install -c bioconda gemini
 pip install git+https://github.com/burkej1/gemini-query-python
 ```
