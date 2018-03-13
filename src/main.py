@@ -195,7 +195,8 @@ def parse_arguments():
         "table"          : "Returns a table containing given fields and filtered using "      \
                            "given filtering options.",
         "info"           : "Prints the fields present in the database",
-        "nofilter"       : "Flag. If set will include filtered variants in the output",
+        "nofilter"       : "Flag. If set will include filtered variants in the output (DEPRE" \
+                           "CATED)",
         "check_undrrover": "Flag. If set the table output will include UNDR-ROVER "           \
                            "concordance metrics.",
         "flattened"      : "Flag. If set will output a table with one sample per line.",
