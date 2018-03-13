@@ -237,6 +237,9 @@ def parse_arguments():
     shared_arguments.add_argument("--genes",
                                   help=helptext_dict["genes"],
                                   default=None)
+    shared_arguments.add_argument("--check_undrrover",
+                                  help=helptext_dict["check_undrrover"],
+                                  action="store_true")
     # Below are manual options that will override defaults
     shared_arguments.add_argument("-f", "--filter", help=helptext_dict["filter"], default=None)
     shared_arguments.add_argument("-F", "--fields", help=helptext_dict["fields"], default=None)
@@ -269,9 +272,6 @@ def parse_arguments():
     parser_table.add_argument("-o", "--output",
                               help=helptext_dict["output"],
                               required=True)
-    parser_table.add_argument("--check_undrrover",
-                              help=helptext_dict["check_undrrover"],
-                              action="store_true")
     # Info
     parser_info = subparsers.add_parser("info",
                                         help=helptext_dict["info"],
