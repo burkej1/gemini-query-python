@@ -79,7 +79,7 @@ optional arguments:
                         A comma separated list of fields to include in
                         addition to the chosen presets.
   --nofilter            Flag. If set will include filtered variants in the
-                        output
+                        output (DEPRECATED)
   --flattened           Flag. If set will output a table with one sample per
                         line.
   --hidesamples         Flag. Hide sample lists.
@@ -128,4 +128,38 @@ There are also several predefined sets of useful fields.
 
 ## Examples
 
+### Table
+All reportable variants (one per line)
+```
+gemini_wrapper table -i my.db -o reportable_vars.tsv -pf reportable
+```
+
+All reportable variants (flattened to one sample per line and appending UNDR ROVER call information)
+```
+gemini_wrapper table -i my.db -o reportable_vars.tsv -pf reportable --flattened --check_undrrover
+```
+
+All variants in TP53, PALB2 and ATM with a REVEL score greater than 0.5 (-ef adds filters, -eF adds fields)
+```
+gemini_wrapper table -i my.db -o reportable_vars.tsv -pf standard \
+  -ef "vep_rvl_revel_score > 0.5" -eF vep_rvl_revel_score \
+  --genes TP53,PALB2,ATM 
+```
+
+### Sample
+All variants associated with a given BSID
+```
+gemini_wrapper sample -i my.db -o test.tsv -S BS123456
+```
+
+All the hidesamples option can be used to suppress the sample lists if there are a lot of common variants
+```
+gemini_wrapper sample -i my.db -o test.tsv -S BS123456 --hidesamples
+```
+
+### Variant
+Search the database for a given variant and return the entry along with detailed sample information if present
+```
+gemini_wrapper variant -i my.db -o test.tsv -v "NM_000059.3:c.12345G>A"
+```
 
