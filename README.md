@@ -10,7 +10,7 @@ To install (requires conda):
 conda create -n env-name python=2.7
 source activate env-name
 conda install pip
-pip install yaml
+pip install pyyaml
 conda install -c bioconda gemini
 pip install git+https://github.com/burkej1/gemini-query-python
 ```
