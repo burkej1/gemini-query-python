@@ -123,7 +123,7 @@ Name | Description
 standard | All variants in vep_pick transcripts or given transcripts (by config or hard-coded). All preset filters include this unless otherwise stated.
 lof | All Loss of Function (LoF) variants.
 lof_pathogenic | All LoF variants and variants classified Pathogenic by BRCA exchange
-reportable | All LoF or Pathogenic by BRCA exchange variants in _BRCA1_, _BRCA2_, _TP53_, _PALB2_ and _ATM_:c.7271T>G.
+reportable | All LoF or Pathogenic (and not Benign) by BRCA exchange variants in _BRCA1_, _BRCA2_, _TP53_, _PALB2_ and _ATM_:c.7271T>G.
 
 ### Field Set Presets
 
@@ -166,3 +166,12 @@ Search the database for a given variant and return the entry along with detailed
 gemini_wrapper variant -i my.db -o test.tsv -v "NM_000059.3:c.12345G>A"
 ```
 
+Allow for partial matching with the --partial option.
+```
+gemini_wrapper variant -i my.db -o test.tsv -v "c.425" --partial
+```
+
+This can also be combined with the --genes, --extrafilter (-ef), --flattened and --check_undrrover options to further refine the query.
+```
+gemini_wrapper variant -i my.db -o test.tsv -v "c.425" --partial --genes STK11 --flattened --check_undrrover
+```
