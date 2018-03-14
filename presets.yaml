@@ -80,6 +80,7 @@ transcripts:
     - BRCA1:NM_007294.3
     - BRCA2:NM_000059.3
     - ATM:NM_000051.3
+    - STK11:NM_000455.4
 
 # # User Presets
 # Construct lists of fields (as above)
