@@ -80,86 +80,37 @@ def get_sample_variants(geminidb, args, options):
     return table_lines
 
 
+
 def get_variant_information(geminidb, args, options):
-    """Retrieves genotype and depth information for all carriers of a given variant along with the
-    original variant entry"""
-    variant = args["variant"]
+    # Getting the list of variants (or one, doesn't matter I think)
+    if args["partial"]:
+        vls = ["vep_hgvsc LIKE '%{}%'".format(v) for v in args["variant"].split(',')]
+    else:
+        vls = ["vep_hgvsc == '{}'".format(v) for v in args["variant"].split(',')]
+    vfilter = '(' + ' OR '.join(vls) + ')' if len(vls) > 1  else '(' + ''.join(vls) + ')'
+    print(vfilter)
 
-    if ',' in variant:
-        # # # # Temporary feature
-        # If the variant is a comma separated list of variants do this instead
-        variantlist = variant.split(',')
-        varlines = []
-        for var in variantlist:
-            is_found = False
-            varquery = "SELECT {fields} FROM variants WHERE vep_hgvsc == '{var}'" \
-                .format(fields=options.query_fields(), var=var)
-            geminidb.run(varquery, show_variant_samples=args["hidesamples"])
-            for varline in geminidb:
-                is_found = True  # Set to found if there is at least one line in the db
-                varlines.append("{var}\tTRUE\t".format(var=var) + str(varline))
-            if not is_found:
-                varlines.append("{var}\tFALSE".format(var=var))
-        query_header = "Search Variant\tIn Database\t" + str(geminidb.header)
-        return([query_header] + varlines)
+    # Constructing the query
+    query = "SELECT {fields} FROM variants WHERE {where_filter} AND {vfilter}" \
+                .format(fields=options.query_fields(),
+                        where_filter=options.query_filter(),
+                        vfilter=vfilter)
+    # Run the query. If flattened is set to true samples must be included.
+    geminidb.run(query, show_variant_samples=(args["hidesamples"] or args["flattened"]))
 
-    gt_info_fields = ["gt_ref_depths", "gt_alt_depths", "gt_alt_freqs", "gt_quals"]
-    # Should implement fuzzy matching with LIKE
-    get_carriers_query = "SELECT {fields} FROM variants WHERE vep_hgvsc == '{variant}'" \
-                             .format(fields=options.query_fields(), variant=variant)
-    geminidb.run(get_carriers_query, show_variant_samples=args["hidesamples"])
-    variant_matches = []
-    original_header = geminidb.header
-    for row in geminidb:
-        original_variant_info = str(row)
-        variant_matches.append(row["variant_samples"])
+    # Using the QueryProcessing class to return the query in the chosen output format
+    query_result = classes.QueryProcessing(geminidb)
+    if args["check_undrrover"]:
+        if args["flattened"]:
+            return query_result.flattened_lines_ur()
+        else:
+            return query_result.regular_lines_ur()
 
-    # Need to write handling for multiple matches
-    if len(variant_matches) > 1:
-        print("Multiple matches found, exiting.")
-        quit()
-    elif not variant_matches:
-        print("No matches found, exiting.")
-        quit()
+    if args["flattened"]:
+        return query_result.flattened_lines()
+    else:
+        return query_result.regular_lines()
 
-    # Instantiating an empty dictionary to store everything
-    genotype_info_dictionary = {}
-    for field in gt_info_fields:
-        # Build a separate query for each genotype query (better return structure this way)
-        gq_formatted_samples = []  # List containing field.sampleid values
-        for sample in variant_matches[0]:  # Completing the above list
-            gq_formatted_samples.append('.'.join([field, sample]))
-        # Building a query from the above list
-        genotype_query = "SELECT {gtinfo} FROM variants WHERE vep_hgvsc == '{variant}'" \
-                             .format(gtinfo=', '.join(gq_formatted_samples),
-                                     variant=variant)
-        # Running the query against the database
-        geminidb.run(genotype_query)
-        # Getting the sample IDs from the header
-        headerids = [
-            headerid.lstrip(field + '.')
-            for headerid in str(geminidb.header).split('\t')
-        ]
-        # Creating a dictionary stored under the current GT field being queried
-        genotype_info_dictionary[field] = {}
-        for row in geminidb:
-            for s_index, value in enumerate(str(row).split('\t')):
-                # Storing the sample IDs and values as key-value pairs
-                genotype_info_dictionary[field][headerids[s_index]] = value
-
-    # Formatting the genotype information table
-    header = ["Sample"]
-    header.extend(gt_info_fields)
-    gt_table_lines = [
-        "Variant Entry:", original_header, original_variant_info, "",
-        "Carrier Information:", '\t'.join(header)
-    ]
-    for sample in variant_matches[0]:
-        workingline = [sample]
-        for field in gt_info_fields:
-            workingline.append(genotype_info_dictionary[field][sample])
-        gt_table_lines.append('\t'.join(workingline))
-    return gt_table_lines
 
 
 def parse_arguments():
@@ -201,7 +152,8 @@ def parse_arguments():
                            "concordance metrics.",
         "flattened"      : "Flag. If set will output a table with one sample per line.",
         "hidesamples"    : "Flag. Hide sample lists.",
-        "genes"          : "List of genes to include. If not specified will include all"
+        "genes"          : "List of genes to include. If not specified will include all",
+        "partial"        : "Flag. Allow partial matching of variants."
     }
     # Defining the argument parser
     # Top level parser
@@ -266,6 +218,9 @@ def parse_arguments():
     parser_variant.add_argument("-v", "--variant",
                                 help=helptext_dict["variantname"],
                                 required=True)
+    parser_variant.add_argument("--partial",
+                                  help=helptext_dict["partial"],
+                                  action="store_true")
     # Table
     parser_table = subparsers.add_parser("table",
                                          help=helptext_dict["table"],

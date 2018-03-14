@@ -68,5 +68,6 @@ DEFAULT_PRESETS = {
     "transcripts":
         ["BRCA1:NM_007294.3",
         "BRCA2:NM_000059.3",
-        "ATM:NM_000051.3"]
+        "ATM:NM_000051.3",
+        "STK11:NM_000455.4"]
 }
