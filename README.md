@@ -1,6 +1,6 @@
 ## Description
 
-Wrapper to make querying gemini databases a bit easier
+Wrapper to make querying GEMINI databases a bit easier. Relies heavily on GEMINI https://github.com/arq5x/gemini and has a lot of expectations about fields and formats.
 
 ## Installation
 
