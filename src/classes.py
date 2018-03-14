@@ -134,7 +134,8 @@ class QueryConstructor(object):
             std=standard,
             lof=lof,
             brcaex=brcaex_pathogenic)
-        reportable = "({std} AND {rep_genes} AND ({lof_path} OR {atm_7271}))".format(
+        reportable = "(({std} AND {rep_genes} AND ({lof_path} OR {atm_7271})) " \
+                     "AND vep_brcaex_clinical_significance_enigma != 'Benign')".format(
             std=standard,
             rep_genes=reportable_genes,
             lof_path=lof_pathogenic,
