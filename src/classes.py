@@ -217,6 +217,47 @@ class QueryProcessing(object):
             table_lines.append(output_line)
         return table_lines
 
+    def regular_lines_filtersamples(self):
+        """Returns lines with sample lists filtered by GT filter"""
+        table_lines = [self.header]
+        # Getting indices of necessary columns from header
+        var_samples_idx = self.header.split('\t').index("variant_samples")
+        het_samples_idx = self.header.split('\t').index("het_samples")
+        homalt_samples_idx = self.header.split('\t').index("hom_alt_samples")
+        numhet_idx = self.header.split('\t').index("num_het")
+        numhomalt_idx = self.header.split('\t').index("num_hom_alt")
+
+        for row in self.gq:
+            # Creating a mutable row (gemini objects seem annoying about reassignment)
+            mut_row = str(row).split('\t')
+
+            # Getting a list of all samples that pass GT filters
+            pass_samples = []
+            for sample in row["variant_samples"]:
+                if row["gt_filters"][self.smptoidx[sample]] == "PASS":
+                    pass_samples.append(sample)
+
+            # Modifying het_samples, hom_alt samples
+            pass_het = []
+            for sample in row["het_samples"]:
+                if sample in pass_samples:
+                    pass_het.append(sample)
+            pass_homalt = []
+            for sample in row["hom_alt_samples"]:
+                if sample in pass_samples:
+                    pass_homalt.append(sample)
+
+            # Modifying row
+            mut_row[var_samples_idx] = ', '.join(pass_samples)
+            mut_row[het_samples_idx] = ', '.join(pass_het)
+            mut_row[homalt_samples_idx] = ', '.join(pass_homalt)
+            mut_row[numhet_idx] = str(len(pass_het))
+            mut_row[numhomalt_idx] = str(len(pass_homalt))
+
+
+            table_lines.append('\t'.join(mut_row))
+        return table_lines
+
     def regular_lines_ur(self):
         """Returns the lines with no changes, UNDR ROVER concordance added"""
         # Deleting UNDR ROVER columns by index

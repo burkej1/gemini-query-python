@@ -24,6 +24,8 @@ def get_table(geminidb, args, options):
 
     # Using the QueryProcessing class to return the query in the chosen output format
     query_result = classes.QueryProcessing(geminidb)
+
+    # Return format based on arguments
     if args["check_undrrover"]:
         if args["flattened"]:
             return query_result.flattened_lines_ur()
@@ -32,6 +34,8 @@ def get_table(geminidb, args, options):
 
     if args["flattened"]:
         return query_result.flattened_lines()
+    elif args["filtersamples"]:
+        return query_result.regular_lines_filtersamples()
     else:
         return query_result.regular_lines()
 
@@ -153,7 +157,8 @@ def parse_arguments():
         "flattened"      : "Flag. If set will output a table with one sample per line.",
         "hidesamples"    : "Flag. Hide sample lists.",
         "genes"          : "List of genes to include. If not specified will include all",
-        "partial"        : "Flag. Allow partial matching of variants."
+        "partial"        : "Flag. Allow partial matching of variants.",
+        "filtersamples"  : "Flag. Filter sample lists to only include GT filter PASS."
     }
     # Defining the argument parser
     # Top level parser
@@ -192,6 +197,9 @@ def parse_arguments():
                                   default=None)
     shared_arguments.add_argument("--check_undrrover",
                                   help=helptext_dict["check_undrrover"],
+                                  action="store_true")
+    shared_arguments.add_argument("--filtersamples",
+                                  help=helptext_dict["filtersamples"],
                                   action="store_true")
     # Below are manual options that will override defaults
     shared_arguments.add_argument("-f", "--filter", help=helptext_dict["filter"], default=None)
