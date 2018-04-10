@@ -280,7 +280,7 @@ class QueryProcessing(object):
         # GATK samplelist (removing _S123 to match UNDR ROVER)
         gatk_samples = [re.sub(r'_S\d+', '', s) for s in row["variant_samples"]]
         # Getting UNDR ROVER information
-        ur_samples = row["vep_undrrover_sample"].split('&')
+        ur_samples = [re.sub(r'_S\d+', '', s) for s in row["vep_undrrover_sample"].split('&')]
         # Check for empty sample list (if empty the first element will be an empty string)
         if not ur_samples[0]:
             return [], 0.00, {}
