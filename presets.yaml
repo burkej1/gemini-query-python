@@ -1,6 +1,10 @@
 # # Example presets file
 # Basic fields to use
 base:
+    - chrom
+    - start
+    - ref
+    - alt
     - gene
     - impact
     - vep_hgvsc

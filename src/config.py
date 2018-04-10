@@ -1,7 +1,11 @@
 # The default values for the preset transcripts and field lists
 DEFAULT_PRESETS = {
-    "base":
-        ["gene",
+    "base": [
+        "chrom",
+        "start",
+        "ref",
+        "alt",
+        "gene",
         "impact",
         "vep_hgvsc",
         "vep_hgvsp",
@@ -9,9 +13,10 @@ DEFAULT_PRESETS = {
         "vep_brcaex_date_last_evaluated_enigma",
         "num_het",
         "num_hom_alt",
-        "filter"],
-    "base_testing":
-        ["gene",
+        "filter"
+    ],
+    "base_testing": [
+        "gene",
         "impact",
         "is_lof",
         "chrom",
@@ -29,9 +34,10 @@ DEFAULT_PRESETS = {
         "vep_brcaex_clinical_significance_enigma",
         "vep_brcaex_date_last_evaluated_enigma",
         "num_het",
-        "num_hom_alt"],
-    "explore":
-        ["gene",
+        "num_hom_alt"
+    ],
+    "explore": [
+        "gene",
         "impact",
         "is_lof",
         "chrom",
@@ -64,10 +70,12 @@ DEFAULT_PRESETS = {
         "vep_rf_score",
         "vep_maxentscan_alt",
         "vep_maxentscan_diff",
-        "vep_maxentscan_ref"],
-    "transcripts":
-        ["BRCA1:NM_007294.3",
+        "vep_maxentscan_ref"
+    ],
+    "transcripts": [
+        "BRCA1:NM_007294.3",
         "BRCA2:NM_000059.3",
         "ATM:NM_000051.3",
-        "STK11:NM_000455.4"]
+        "STK11:NM_000455.4"
+    ]
 }
