@@ -17,6 +17,7 @@ class Presets(object):
                     raise exc
         else:
             presets = config.DEFAULT_PRESETS
+        # Internal preset field sets and transcripts
         self.presets = presets
 
     def get_preset(self, key):
@@ -37,6 +38,7 @@ class Presets(object):
             return genes
 
 
+
 class QueryConstructor(object):
     """Contains variables and methods for constructing gemini queries from arguments
     and/or the presets.config file. Takes the arguments dictionary from argparse and
@@ -47,6 +49,15 @@ class QueryConstructor(object):
     def __init__(self, arguments, presets):
         self.args_dict = arguments
         self.presets_o = presets
+        # Dictionary for field mapping
+        self.fld2tbl = config.FLD2TBL
+
+    def map_to_table(self, fields):
+        '''Map a list of fields to either the variant_impacts or variants table'''
+        pass
+
+    # def query_filter_join(self):
+    #     pass
 
     def query_filter(self):
         """Returns the query filter constructed from arguments and presets"""
@@ -78,15 +89,16 @@ class QueryConstructor(object):
         # Using the preset field arg to pull a list of fields from the config
         presetfields = self.presets_o.get_preset(self.args_dict["presetfields"])
         # Directly extracting extra and manually defined fields from args
-        userfields_extra = self.args_dict["extrafields"]
-        userfields_manual = self.args_dict["fields"]
+        userfields_extra = self.args_dict["extrafields"].split(',')
+        userfields_manual = self.args_dict["fields"].split(',')
+
         if userfields_manual is not None:
             # If fields are manually specified return only those fields
             returnfields = ', '.join(userfields_manual)
         elif userfields_extra is not None:
             # If extra fields are specified return those combined with the chosen (or default)
             # preset.
-            returnfields = ', '.join(presetfields + userfields_extra.split(','))
+            returnfields = ', '.join(presetfields + userfields_extra)
         else:
             # If there are no extra fields and no fields are manually defined return the presets
             returnfields = ', '.join(presetfields)
@@ -136,10 +148,10 @@ class QueryConstructor(object):
             brcaex=brcaex_pathogenic)
         reportable = "(({std} AND {rep_genes} AND ({lof_path} OR {atm_7271})) " \
                      "AND vep_brcaex_clinical_significance_enigma != 'Benign')".format(
-            std=standard,
-            rep_genes=reportable_genes,
-            lof_path=lof_pathogenic,
-            atm_7271=atm_7271)
+                         std=standard,
+                         rep_genes=reportable_genes,
+                         lof_path=lof_pathogenic,
+                         atm_7271=atm_7271)
 
         # Instantiating the dictionary
         translation_dictionary = {

@@ -1,3 +1,58 @@
+'''Contains a number of general python objects'''
+# Dictionary mapping fields to the relevant tables
+FLD2TBL = {
+    # # # variants (v.) table (general fields shared regardless of annotation)
+    "chrom": "v.chrom",
+    "start": "v.start",
+    "end": "v.end",
+    "ref": "v.ref",
+    "alt": "v.alt",
+    "filter": "v.filter",
+    "num_het": "v.num_het",
+    "num_hom_alt": "v.num_hom_alt",
+    "info": "v.info",
+    # Genotype blobs
+    "gts": "v.gts",
+    "gt_types": "v.gt_types",
+    "gt_phases": "v.gt_phases",
+    "gt_depths": "v.gt_depths",
+    "gt_ref_depths": "v.gt_ref_depths",
+    "gt_alt_depths": "v.gt_alt_depths",
+    "gt_alt_freqs": "v.gt_alt_freqs",
+    "gt_filters": "v.gt_filters",
+    "gt_quals": "v.gt_quals",
+    "gt_copy_numbers": "v.gt_copy_numbers",
+    "gt_phred_ll_homref": "v.gt_phred_ll_homref",
+    "gt_phred_ll_het": "v.gt_phred_ll_het",
+    "gt_phred_ll_homalt": "v.gt_phred_ll_homalt",
+    # # # variant_impacts (i.) table (annotation specific fields)
+    "gene": "i.gene",
+    "impact": "i.impact",
+    "is_lof": "i.s_lof",
+    "vep_pick": "i.vep_pick",
+    "transcript": "i.transcript",
+    "vep_hgvsc": "i.vep_hgvsc",
+    "vep_hgvsp": "i.vep_hgvsp",
+    "vep_brcaex_hgvs_cdna": "i.vep_brcaex_hgvs_cdna",
+    "vep_brcaex_hgvs_protein": "i.vep_brcaex_hgvs_protein",
+    "vep_brcaex_clinical_significance_enigma": "i.vep_brcaex_clinical_significance_enigma",
+    "vep_brcaex_date_last_evaluated_enigma": "i.vep_brcaex_date_last_evaluated_enigma",
+    "vep_exac_af": "i.vep_exac_af",
+    "vep_exac_af_nfe": "i.vep_exac_af_nfe",
+    "vep_gnomad_af_nfe": "i.vep_gnomad_af_nfe",
+    "vep_cadd_phred": "i.vep_cadd_phred",
+    "vep_cadd_raw": "i.vep_cadd_raw",
+    "vep_rvl_revel_score": "i.vep_rvl_revel_score",
+    "polyphen_pred": "i.polyphen_pred",
+    "polyphen_score": "i.polyphen_score",
+    "sift_pred": "i.sift_pred",
+    "sift_score": "i.sift_score",
+    "vep_ada_score": "i.vep_ada_score",
+    "vep_rf_score": "i.vep_rf_score",
+    "vep_maxentscan_alt": "i.vep_maxentscan_alt",
+    "vep_maxentscan_diff": "i.vep_maxentscan_diff",
+    "vep_maxentscan_ref": "i.vep_maxentscan_ref",
+}
 # The default values for the preset transcripts and field lists
 DEFAULT_PRESETS = {
     "base": [
