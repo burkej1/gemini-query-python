@@ -16,7 +16,7 @@ def get_fields(db):
 def get_table(geminidb, args, options):
     """Returns a table of variants based on the fields and filter options provided"""
     # Constructing the query
-    query = "SELECT {fields} FROM variants WHERE {where_filter}" \
+    query = "SELECT {fields} FROM variants v, variant_impacts i WHERE {where_filter}" \
                 .format(fields=options.query_fields(),
                         where_filter=options.query_filter())
     # Run the query. If flattened is set to true samples must be included.
@@ -60,16 +60,17 @@ def get_sample_variants(geminidb, args, options):
         else:
             print("Found: {match}".format(match=matches[0]))
         fullsampleid = matches[0]
-        gt_filter = "gt_types.{fullsampleid} == HET OR " \
-                    "gt_types.{fullsampleid} == HOM_ALT".format(fullsampleid=fullsampleid)
+        gt_filter = "v.gt_types.{fullsampleid} == HET OR " \
+                    "v.gt_types.{fullsampleid} == HOM_ALT".format(fullsampleid=fullsampleid)
     else:
         # If a BSID is not given it's assumed the full name was given
         fullsampleid = sampleid
-        gt_filter = "gt_types.{fullsampleid} == HET OR " \
-                    "gt_types.{fullsampleid} == HOM_ALT".format(fullsampleid=fullsampleid)
-    genotype_information = "gts.{fsi}, gt_ref_depths.{fsi}, gt_alt_depths.{fsi}, " \
-                           "gt_alt_freqs.{fsi}".format(fsi=fullsampleid)
-    query = "SELECT {fields}, {genotypeinfo} FROM variants WHERE {where_filter}" \
+        gt_filter = "v.gt_types.{fullsampleid} == HET OR " \
+                    "v.gt_types.{fullsampleid} == HOM_ALT".format(fullsampleid=fullsampleid)
+    genotype_information = "v.gts.{fsi}, v.gt_ref_depths.{fsi}, v.gt_alt_depths.{fsi}, " \
+                           "v.gt_alt_freqs.{fsi}".format(fsi=fullsampleid)
+    query = "SELECT {fields}, {genotypeinfo} FROM variants v, variant_impacts i " \
+            "WHERE {where_filter}" \
                 .format(fields=options.query_fields(),
                         where_filter=options.query_filter(),
                         genotypeinfo=genotype_information)
@@ -88,14 +89,14 @@ def get_sample_variants(geminidb, args, options):
 def get_variant_information(geminidb, args, options):
     # Getting the list of variants (or one, doesn't matter I think)
     if args["partial"]:
-        vls = ["vep_hgvsc LIKE '%{}%'".format(v) for v in args["variant"].split(',')]
+        vls = ["i.vep_hgvsc LIKE '%{}%'".format(v) for v in args["variant"].split(',')]
     else:
-        vls = ["vep_hgvsc == '{}'".format(v) for v in args["variant"].split(',')]
+        vls = ["i.vep_hgvsc == '{}'".format(v) for v in args["variant"].split(',')]
     vfilter = '(' + ' OR '.join(vls) + ')' if len(vls) > 1  else '(' + ''.join(vls) + ')'
     print(vfilter)
 
     # Constructing the query
-    query = "SELECT {fields} FROM variants WHERE {where_filter} AND {vfilter}" \
+    query = "SELECT {fields} FROM v variants, i variant_impacts WHERE {where_filter} AND {vfilter}" \
                 .format(fields=options.query_fields(),
                         where_filter=options.query_filter(),
                         vfilter=vfilter)

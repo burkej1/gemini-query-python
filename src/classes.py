@@ -28,9 +28,9 @@ class Presets(object):
         """Formats the supplied list of transcripts. Can return a list of genes or
         transcripts depending on the t_or_g argument value."""
         genes = [transcript.split(':')[0] for transcript in self.get_preset("transcripts")]
-        genes = " AND ".join(["gene != '" + gene + "'" for gene in genes])
+        genes = " AND ".join(["i.gene != '" + gene + "'" for gene in genes])
         transcripts = [transcript.split(':')[1] for transcript in self.get_preset("transcripts")]
-        transcripts = " OR ".join(["transcript == '" + transcript + "'"
+        transcripts = " OR ".join(["i.transcript == '" + transcript + "'"
             for transcript in transcripts])
         if t_or_g == "transcripts":
             return transcripts
@@ -54,10 +54,50 @@ class QueryConstructor(object):
 
     def map_to_table(self, fields):
         '''Map a list of fields to either the variant_impacts or variants table'''
-        pass
+        # Return an empty list if fields is empty
+        if not fields:
+            return []
+        # Make a list of fields mapped to their tables
+        mapped_fields = []
+        for field in fields:
+            # Skip fields that start with x. (assumes the table is already specified)
+            if field[1] == '.':
+                mapped_fields.append(field)
+            else:
+                # Try to convert and add the field
+                try:
+                    mapped_fields.append(self.fld2tbl[field])
+                # If the field isn't in the dictionary assume it's in the variant_impacts table
+                except KeyError:
+                    mapped_fields.append('i.' + field)
+        return mapped_fields
 
-    # def query_filter_join(self):
-    #     pass
+    def query_fields(self):
+        """Returns a formatted list of fields for the GEMINI query"""
+        # Getting fields in list format
+        # Using the preset field arg to pull a list of fields from the config
+        presetfields = self.map_to_table(self.presets_o.get_preset(self.args_dict["presetfields"]))
+        # Directly extracting extra and manually defined fields from args
+        userfields_extra = self.map_to_table(self.args_dict["extrafields"].split(',')) \
+            if self.args_dict["extrafields"] is not None else None
+        userfields_manual = self.map_to_table(self.args_dict["fields"].split(',')) \
+            if self.args_dict["extrafields"] is not None else None
+
+        if userfields_manual is not None:
+            # If fields are manually specified return only those fields
+            returnfields = ', '.join(userfields_manual)
+        elif userfields_extra is not None:
+            # If extra fields are specified return those combined with the chosen (or default)
+            # preset.
+            returnfields = ', '.join(presetfields + userfields_extra)
+        else:
+            # If there are no extra fields and no fields are manually defined return the presets
+            returnfields = ', '.join(presetfields)
+        if self.args_dict["check_undrrover"]:
+            # If the check undrrover flag is set add the UR fields
+            returnfields += ", i.vep_undrrover_sample, i.vep_undrrover_pct, " \
+                            "i.vep_undrrover_nv, i.vep_undrrover_np"
+        return returnfields
 
     def query_filter(self):
         """Returns the query filter constructed from arguments and presets"""
@@ -80,33 +120,10 @@ class QueryConstructor(object):
             # If the nofilter flag is set remove the filter part of the filter
             returnfilter = re.sub("AND filter IS NULL", "", returnfilter)
         if self.args_dict["genes"]:
-            genefilter = "(" + "' OR ".join("gene == '" + gene for gene in self.args_dict["genes"].split(',')) + "')"
+            genefilter = "(" + "' OR ".join("i.gene == '" + gene for gene in self.args_dict["genes"].split(',')) + "')"
             returnfilter += " AND {}".format(genefilter)
+        returnfilter = '(v.variant_id == i.variant_id) AND (' + returnfilter + ')'
         return returnfilter
-
-    def query_fields(self):
-        """Returns a formatted list of fields for the GEMINI query"""
-        # Using the preset field arg to pull a list of fields from the config
-        presetfields = self.presets_o.get_preset(self.args_dict["presetfields"])
-        # Directly extracting extra and manually defined fields from args
-        userfields_extra = self.args_dict["extrafields"].split(',')
-        userfields_manual = self.args_dict["fields"].split(',')
-
-        if userfields_manual is not None:
-            # If fields are manually specified return only those fields
-            returnfields = ', '.join(userfields_manual)
-        elif userfields_extra is not None:
-            # If extra fields are specified return those combined with the chosen (or default)
-            # preset.
-            returnfields = ', '.join(presetfields + userfields_extra)
-        else:
-            # If there are no extra fields and no fields are manually defined return the presets
-            returnfields = ', '.join(presetfields)
-        if self.args_dict["check_undrrover"]:
-            # If the check undrrover flag is set add the UR fields
-            returnfields += ", vep_undrrover_sample, vep_undrrover_pct, " \
-                            "vep_undrrover_nv, vep_undrrover_np"
-        return returnfields
 
     def get_predefined_filter(self):
         """Translates simple arguments to predefined where queries."""
@@ -116,22 +133,22 @@ class QueryConstructor(object):
         exclude = self.presets_o.format_transcripts("genes")
         include = self.presets_o.format_transcripts("transcripts")
         # Variant filter block
-        variant_filter = "(filter IS NULL)"
+        variant_filter = "(v.filter IS NULL)"
         # Vep pick block
-        vep_pick = "(vep_pick == 1)"
+        vep_pick = "(i.vep_pick == 1)"
         # LoF block
-        lof = "(impact = 'frameshift_variant' OR  " \
-              "impact = 'stop_gained' OR  " \
-              "impact = 'splice_donor_variant' OR  " \
-              "impact = 'splice_acceptor_variant' OR  " \
-              "is_lof = 1)"
+        lof = "(i.impact = 'frameshift_variant' OR  " \
+              "i.impact = 'stop_gained' OR  " \
+              "i.impact = 'splice_donor_variant' OR  " \
+              "i.impact = 'splice_acceptor_variant' OR  " \
+              "i.is_lof = 1)"
         # BRCA Exchange pathogenic block
-        brcaex_pathogenic = "(vep_brcaex_clinical_significance_enigma == 'Pathogenic')"
+        brcaex_pathogenic = "(i.vep_brcaex_clinical_significance_enigma == 'Pathogenic')"
         # ATM c.7271T>G block
-        atm_7271 = "(vep_hgvsc == 'NM_000051.3:c.7271T>G')"
+        atm_7271 = "(i.vep_hgvsc == 'NM_000051.3:c.7271T>G')"
         # Clinically reportable genes / ATM c.7271T>G
-        reportable_genes = "(gene == 'BRCA1' OR gene == 'BRCA2' OR gene == 'TP53' OR " \
-                           "vep_hgvsc == 'NM_000051.3:c.7271T>G' OR gene == 'PALB2')"
+        reportable_genes = "(i.gene == 'BRCA1' OR i.gene == 'BRCA2' OR i.gene == 'TP53' OR " \
+                           "i.vep_hgvsc == 'NM_000051.3:c.7271T>G' OR i.gene == 'PALB2')"
 
         # Combining blocks to create filters (make sure they're surrounded by brackets so
         # they play nice with user filters)
@@ -147,7 +164,7 @@ class QueryConstructor(object):
             lof=lof,
             brcaex=brcaex_pathogenic)
         reportable = "(({std} AND {rep_genes} AND ({lof_path} OR {atm_7271})) " \
-                     "AND vep_brcaex_clinical_significance_enigma != 'Benign')".format(
+                     "AND i.vep_brcaex_clinical_significance_enigma != 'Benign')".format(
                          std=standard,
                          rep_genes=reportable_genes,
                          lof_path=lof_pathogenic,
