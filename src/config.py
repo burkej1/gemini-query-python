@@ -28,7 +28,7 @@ FLD2TBL = {
     # # # variant_impacts (i.) table (annotation specific fields)
     "gene": "i.gene",
     "impact": "i.impact",
-    "is_lof": "i.s_lof",
+    "is_lof": "i.is_lof",
     "vep_pick": "i.vep_pick",
     "transcript": "i.transcript",
     "vep_hgvsc": "i.vep_hgvsc",
