@@ -22,6 +22,9 @@ def get_table(geminidb, args, options):
     # Run the query. If flattened is set to true samples must be included.
     geminidb.run(query, show_variant_samples=(args["hidesamples"] or args["flattened"]))
 
+    if args["show_query"]:
+        print(query)
+
     # Using the QueryProcessing class to return the query in the chosen output format
     query_result = classes.QueryProcessing(geminidb)
 
@@ -158,7 +161,8 @@ def parse_arguments():
         "hidesamples"    : "Flag. Hide sample lists.",
         "genes"          : "List of genes to include. If not specified will include all",
         "partial"        : "Flag. Allow partial matching of variants.",
-        "filtersamples"  : "Flag. Filter sample lists to only include GT filter PASS."
+        "filtersamples"  : "Flag. Filter sample lists to only include GT filter PASS.",
+        "show_query"     : "Flag. Prints the query run."
     }
     # Defining the argument parser
     # Top level parser
@@ -200,6 +204,9 @@ def parse_arguments():
                                   action="store_true")
     shared_arguments.add_argument("--filtersamples",
                                   help=helptext_dict["filtersamples"],
+                                  action="store_true")
+    shared_arguments.add_argument("--show_query",
+                                  help=helptext_dict["show_query"],
                                   action="store_true")
     # Below are manual options that will override defaults
     shared_arguments.add_argument("-f", "--filter", help=helptext_dict["filter"], default=None)
@@ -258,8 +265,7 @@ def main():
     queryformatter = classes.QueryConstructor(arguments, presets)
 
     # Creating the gemini database object
-    gemini_db = GeminiQuery.GeminiQuery(
-        arguments["input"])
+    gemini_db = GeminiQuery.GeminiQuery(arguments["input"])
 
     # Calling relevant function depending on the chosen mode
     if arguments["mode"] == "sample":
