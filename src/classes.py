@@ -162,16 +162,15 @@ class QueryProcessing(object):
 
     def flattened_lines(self):
         """Flattens the output to one line per sample and appends sample genotype info"""
-        flat_hdr = '\t'.join(self.header.split('\t')[:-3]) + "\tSample\tGT Filter\tAlt Frequency\tRef Depth\tAlt Depth"
+        flat_hdr = '\t'.join(self.header.split('\t')[:-3]) + "\tSample\tAlt Frequency\tRef Depth\tAlt Depth"
         table_lines = [flat_hdr]
         for row in self.gq:
             samples = row["variant_samples"]  # Getting the variant samples as a list
             for sample in samples:
                 smpidx = self.smptoidx[sample]
                 sampleline = '\t'.join(str(row).split('\t')[:-3]) + \
-                    "\t{SMP}\t{FT}\t{FREQ}\t{REFDP}\t{ALTDP}" \
+                    "\t{SMP}\t{FREQ}\t{REFDP}\t{ALTDP}" \
                         .format(SMP=sample,
-                                FT=row["gt_filters"][smpidx],
                                 FREQ=row["gt_alt_freqs"][smpidx],
                                 REFDP=row["gt_ref_depths"][smpidx],
                                 ALTDP=row["gt_alt_depths"][smpidx])
