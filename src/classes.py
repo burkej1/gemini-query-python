@@ -164,17 +164,33 @@ class QueryProcessing(object):
         """Flattens the output to one line per sample and appends sample genotype info"""
         flat_hdr = '\t'.join(self.header.split('\t')[:-3]) + "\tSample\tAlt Frequency\tRef Depth\tAlt Depth"
         table_lines = [flat_hdr]
+
+        sample_fields = None
+
         for row in self.gq:
             samples = row["variant_samples"]  # Getting the variant samples as a list
+
             for sample in samples:
                 smpidx = self.smptoidx[sample]
+
+
                 sampleline = '\t'.join(str(row).split('\t')[:-3]) + \
                     "\t{SMP}\t{FREQ}\t{REFDP}\t{ALTDP}" \
                         .format(SMP=sample,
                                 FREQ=row["gt_alt_freqs"][smpidx],
                                 REFDP=row["gt_ref_depths"][smpidx],
                                 ALTDP=row["gt_alt_depths"][smpidx])
+
+                # Getting all fields in the samples table if haven't already
+                smp_obj = self.gq.sample_to_sample_object[sample]
+                if not sample_fields:
+                    sample_fields = [f for f in smp_obj.__dict__]
+                smp_info = '\t'.join([str(smp_obj.__dict__[f]) for f in sample_fields])
+                sampleline += '\t' + smp_info
+
                 table_lines.append(sampleline)
+
+        table_lines[0] += '\t' + '\t'.join(sample_fields)
         return table_lines
 
     def flattened_lines_ur(self):
